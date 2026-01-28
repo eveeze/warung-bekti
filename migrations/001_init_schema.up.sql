@@ -160,7 +160,7 @@ CREATE INDEX idx_transactions_customer ON transactions(customer_id);
 CREATE INDEX idx_transactions_created_at ON transactions(created_at DESC);
 CREATE INDEX idx_transactions_status ON transactions(status);
 CREATE INDEX idx_transactions_payment ON transactions(payment_method);
-CREATE INDEX idx_transactions_daily ON transactions(created_at::date, status);
+
 
 -- =============================================
 -- Transaction Items

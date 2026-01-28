@@ -8,6 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/eveeze/warung-backend/internal/config"
+	"github.com/eveeze/warung-backend/internal/domain"
 	"github.com/eveeze/warung-backend/internal/pkg/response"
 )
 
@@ -15,13 +16,7 @@ type contextKey string
 
 const UserContextKey contextKey = "user"
 
-// UserClaims represents JWT claims
-type UserClaims struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
-	jwt.RegisteredClaims
-}
+
 
 // Auth middleware validates JWT tokens
 func Auth(cfg *config.JWTConfig) func(http.Handler) http.Handler {
@@ -41,7 +36,7 @@ func Auth(cfg *config.JWTConfig) func(http.Handler) http.Handler {
 
 			tokenString := parts[1]
 
-			token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
+			token, err := jwt.ParseWithClaims(tokenString, &domain.UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 				return []byte(cfg.Secret), nil
 			})
 
@@ -50,7 +45,7 @@ func Auth(cfg *config.JWTConfig) func(http.Handler) http.Handler {
 				return
 			}
 
-			claims, ok := token.Claims.(*UserClaims)
+			claims, ok := token.Claims.(*domain.UserClaims)
 			if !ok {
 				response.Unauthorized(w, "Invalid token claims")
 				return
@@ -79,12 +74,12 @@ func OptionalAuth(cfg *config.JWTConfig) func(http.Handler) http.Handler {
 				return
 			}
 
-			token, err := jwt.ParseWithClaims(parts[1], &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
+			token, err := jwt.ParseWithClaims(parts[1], &domain.UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 				return []byte(cfg.Secret), nil
 			})
 
 			if err == nil && token.Valid {
-				if claims, ok := token.Claims.(*UserClaims); ok {
+				if claims, ok := token.Claims.(*domain.UserClaims); ok {
 					ctx := context.WithValue(r.Context(), UserContextKey, claims)
 					r = r.WithContext(ctx)
 				}
@@ -96,8 +91,8 @@ func OptionalAuth(cfg *config.JWTConfig) func(http.Handler) http.Handler {
 }
 
 // GetUserFromContext retrieves user claims from context
-func GetUserFromContext(ctx context.Context) *UserClaims {
-	claims, ok := ctx.Value(UserContextKey).(*UserClaims)
+func GetUserFromContext(ctx context.Context) *domain.UserClaims {
+	claims, ok := ctx.Value(UserContextKey).(*domain.UserClaims)
 	if !ok {
 		return nil
 	}
