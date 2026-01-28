@@ -56,11 +56,43 @@
 							]
 						}
 					}
+				},
+				{
+					"name": "Readiness Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/ready",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ready"
+							]
+						}
+					}
+				},
+				{
+					"name": "Liveness Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/live",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"live"
+							]
+						}
+					}
 				}
 			]
 		},
 		{
-			"name": "0.1 Authentication",
+			"name": "1. Authentication",
 			"item": [
 				{
 					"name": "Register Admin",
@@ -102,6 +134,7 @@
 									"var jsonData = pm.response.json();",
 									"if (jsonData.data && jsonData.data.access_token) {",
 									"    pm.environment.set(\"access_token\", jsonData.data.access_token);",
+									"    pm.environment.set(\"refresh_token\", jsonData.data.refresh_token);",
 									"    console.log(\"Access Token updated\");",
 									"}"
 								],
@@ -135,12 +168,30 @@
 				},
 				{
 					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.access_token) {",
+									"    pm.environment.set(\"access_token\", jsonData.data.access_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"refresh_token\": \"<paste_refresh_token_here>\"\n}",
+							"raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -162,10 +213,10 @@
 			]
 		},
 		{
-			"name": "1. Products Management",
+			"name": "2. Products",
 			"item": [
 				{
-					"name": "Create Product (Indomie)",
+					"name": "Create Product (Stock Active)",
 					"event": [
 						{
 							"listen": "test",
@@ -177,8 +228,7 @@
 									"",
 									"var jsonData = pm.response.json();",
 									"pm.environment.set(\"product_id_1\", jsonData.data.id);",
-									"pm.environment.set(\"product_sku_1\", jsonData.data.sku);",
-									"console.log(\"Created Product 1: \" + jsonData.data.id);"
+									"pm.environment.set(\"product_barcode_1\", jsonData.data.barcode);"
 								],
 								"type": "text/javascript"
 							}
@@ -189,7 +239,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Indomie Goreng\",\n    \"sku\": \"IND-GRG-001\",\n    \"barcode\": \"8998888123456\",\n    \"category_id\": null,\n    \"unit\": \"pcs\",\n    \"base_price\": 3500,\n    \"cost_price\": 2800,\n    \"is_stock_active\": true,\n    \"current_stock\": 100,\n    \"min_stock_alert\": 10,\n    \"pricing_tiers\": [\n        {\"name\": \"Grosir\", \"min_quantity\": 12, \"price\": 3000}\n    ]\n}",
+							"raw": "{\n    \"name\": \"Indomie Goreng\",\n    \"sku\": \"IND-GRG-001\",\n    \"barcode\": \"8998888123456\",\n    \"unit\": \"pcs\",\n    \"base_price\": 3500,\n    \"cost_price\": 2800,\n    \"is_stock_active\": true,\n    \"current_stock\": 100,\n    \"min_stock_alert\": 10,\n    \"pricing_tiers\": [\n        {\"name\": \"Grosir\", \"min_quantity\": 12, \"price\": 3000}\n    ]\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -210,7 +260,7 @@
 					}
 				},
 				{
-					"name": "Create Product (Beras - No Stock Tracking)",
+					"name": "Create Product (Service/No Stock)",
 					"event": [
 						{
 							"listen": "test",
@@ -221,8 +271,7 @@
 									"});",
 									"",
 									"var jsonData = pm.response.json();",
-									"pm.environment.set(\"product_id_2\", jsonData.data.id);",
-									"console.log(\"Created Product 2: \" + jsonData.data.id);"
+									"pm.environment.set(\"product_id_2\", jsonData.data.id);"
 								],
 								"type": "text/javascript"
 							}
@@ -254,75 +303,12 @@
 					}
 				},
 				{
-					"name": "Create Product (Validation Error - Edge Case)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 422 Unprocessable Entity\", function () {",
-									"    pm.response.to.have.status(422);",
-									"});",
-									"",
-									"pm.test(\"Returns validation errors\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.error).to.include(\"Validation failed\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"\",\n    \"base_price\": -5000\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/products",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products"
-							]
-						}
-					}
-				},
-				{
 					"name": "Get Product List",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test(\"Contains data\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.data.length).to.be.above(0);",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/products?per_page=10&page=1",
+							"raw": "{{base_url}}/api/v1/products?page=1&per_page=10",
 							"host": [
 								"{{base_url}}"
 							],
@@ -333,42 +319,24 @@
 							],
 							"query": [
 								{
-									"key": "per_page",
-									"value": "10"
-								},
-								{
 									"key": "page",
 									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "10"
 								}
 							]
 						}
 					}
 				},
 				{
-					"name": "Search Product by Barcode",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test(\"Correct product returned\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.data.name).to.eql(\"Indomie Goreng\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
+					"name": "Search by Barcode",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/products/search?barcode=8998888123456",
+							"raw": "{{base_url}}/api/v1/products/search?barcode={{product_barcode_1}}",
 							"host": [
 								"{{base_url}}"
 							],
@@ -381,68 +349,87 @@
 							"query": [
 								{
 									"key": "barcode",
-									"value": "8998888123456"
+									"value": "{{product_barcode_1}}"
 								}
-							]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "2. Inventory Management",
-			"item": [
-				{
-					"name": "Restock Product (Purchase)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"quantity\": 50,\n    \"cost_per_unit\": 2700,\n    \"notes\": \"Restock mingguan\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/inventory/restock",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"inventory",
-								"restock"
 							]
 						}
 					}
 				},
 				{
-					"name": "Adjust Stock (Corrections)",
+					"name": "Get Low Stock Products",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/products/low-stock",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"products",
+								"low-stock"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Product by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"products",
+								"{{product_id_1}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Product",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Indomie Goreng Special\",\n    \"base_price\": 3600\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"products",
+								"{{product_id_1}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Add Pricing Tier",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});"
+									"var jsonData = pm.response.json();",
+									"pm.environment.set(\"tier_id\", jsonData.data.id);"
 								],
 								"type": "text/javascript"
 							}
@@ -453,7 +440,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"quantity\": -2,\n    \"reason\": \"Barang rusak/expired\"\n}",
+							"raw": "{\n    \"name\": \"Kartonan\",\n    \"min_quantity\": 40,\n    \"price\": 2800\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -461,15 +448,86 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/inventory/adjust",
+							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}/pricing-tiers",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"api",
 								"v1",
-								"inventory",
-								"adjust"
+								"products",
+								"{{product_id_1}}",
+								"pricing-tiers"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Pricing Tier",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"price\": 2750\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}/pricing-tiers/{{tier_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"products",
+								"{{product_id_1}}",
+								"pricing-tiers",
+								"{{tier_id}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Pricing Tier",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}/pricing-tiers/{{tier_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"products",
+								"{{product_id_1}}",
+								"pricing-tiers",
+								"{{tier_id}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Product (Soft)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/products/{{product_id_2}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"products",
+								"{{product_id_2}}"
 							]
 						}
 					}
@@ -480,7 +538,7 @@
 			"name": "3. Customers",
 			"item": [
 				{
-					"name": "Create Customer (John Doe)",
+					"name": "Create Customer",
 					"event": [
 						{
 							"listen": "test",
@@ -502,7 +560,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"John Doe\",\n    \"phone\": \"081234567890\",\n    \"credit_limit\": 100000,\n    \"address\": \"Jl. Warung No. 1\"\n}",
+							"raw": "{\n    \"name\": \"Budi Santoso\",\n    \"phone\": \"08123456789\",\n    \"address\": \"Jl. Merdeka No. 45\",\n    \"credit_limit\": 500000,\n    \"notes\": \"Pelanggan setia\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -523,35 +581,10 @@
 					}
 				},
 				{
-					"name": "Create Customer (Bad Credit - Edge Case)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"var jsonData = pm.response.json();",
-									"pm.environment.set(\"bad_customer_id\", jsonData.data.id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
+					"name": "List Customers",
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"Mr. Broke\",\n    \"credit_limit\": 0\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
 						"url": {
 							"raw": "{{base_url}}/api/v1/customers",
 							"host": [
@@ -564,35 +597,251 @@
 							]
 						}
 					}
+				},
+				{
+					"name": "Get Customers with Debt",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/customers/with-debt",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customers",
+								"with-debt"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Customer by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customers",
+								"{{customer_id}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Update Customer",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"credit_limit\": 750000,\n    \"notes\": \"Limit dinaikkan\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customers",
+								"{{customer_id}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Kasbon History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}/kasbon",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customers",
+								"{{customer_id}}",
+								"kasbon"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Kasbon Summary",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}/kasbon/summary",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customers",
+								"{{customer_id}}",
+								"kasbon",
+								"summary"
+							]
+						}
+					}
+				},
+				{
+					"name": "Record Kasbon Payment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"amount\": 50000,\n    \"notes\": \"Bayar sebagian via transfer\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}/kasbon/pay",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customers",
+								"{{customer_id}}",
+								"kasbon",
+								"pay"
+							]
+						}
+					}
 				}
 			]
 		},
 		{
-			"name": "4. POS Transactions",
+			"name": "4. Inventory",
+			"item": [
+				{
+					"name": "Restock Product",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"quantity\": 50,\n    \"cost_per_unit\": 2700,\n    \"notes\": \"Restock mingguan dari Supplier A\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/restock",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"inventory",
+								"restock"
+							]
+						}
+					}
+				},
+				{
+					"name": "Adjust Stock",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"quantity\": -2,\n    \"reason\": \"Barang rusak (hujan)\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/adjust",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"inventory",
+								"adjust"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Inventory Movements",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/{{product_id_1}}/movements",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"inventory",
+								"{{product_id_1}}",
+								"movements"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Inventory Report",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/inventory/report",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"inventory",
+								"report"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Transactions (POS)",
 			"item": [
 				{
 					"name": "Calculate Cart (Preview)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"var jsonData = pm.response.json();",
-									"pm.test(\"Calculates correct price\", function () {",
-									"    // 13 pcs > 12 (Grosir 3000)",
-									"    // 13 * 3000 = 39000",
-									"    pm.expect(jsonData.data.subtotal).to.eql(39000);",
-									"    pm.expect(jsonData.data.items[0].tier_name).to.eql(\"Grosir\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
 					"request": {
 						"method": "POST",
 						"header": [],
@@ -620,7 +869,7 @@
 					}
 				},
 				{
-					"name": "Checkout - Cash Payment",
+					"name": "Create Transaction (Cash)",
 					"event": [
 						{
 							"listen": "test",
@@ -631,11 +880,7 @@
 									"});",
 									"",
 									"var jsonData = pm.response.json();",
-									"pm.test(\"Successful transaction\", function () {",
-									"    pm.expect(jsonData.data.status).to.eql(\"completed\");",
-									"    pm.expect(jsonData.data.payment_method).to.eql(\"cash\");",
-									"    pm.expect(jsonData.data.change_amount).to.be.above(0);",
-									"});"
+									"pm.environment.set(\"transaction_id\", jsonData.data.id);"
 								],
 								"type": "text/javascript"
 							}
@@ -646,7 +891,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 2\n        },\n        {\n            \"product_id\": \"{{product_id_2}}\",\n            \"quantity\": 1\n        }\n    ],\n    \"payment_method\": \"cash\",\n    \"amount_paid\": 20000,\n    \"cashier_name\": \"Kasir 1\"\n}",
+							"raw": "{\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 2\n        }\n    ],\n    \"payment_method\": \"cash\",\n    \"amount_paid\": 10000,\n    \"cashier_name\": \"Kasir 1\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -667,18 +912,14 @@
 					}
 				},
 				{
-					"name": "Checkout - Kasbon (Debt) Success",
+					"name": "Create Transaction (Kasbon)",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
 									"var jsonData = pm.response.json();",
-									"pm.environment.set(\"transaction_id_kasbon\", jsonData.data.id);"
+									"pm.environment.set(\"transaction_kasbon_id\", jsonData.data.id);"
 								],
 								"type": "text/javascript"
 							}
@@ -689,7 +930,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"customer_id\": \"{{customer_id}}\",\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 10\n        }\n    ],\n    \"payment_method\": \"kasbon\",\n    \"amount_paid\": 0,\n    \"notes\": \"Hutang dulu boss\"\n}",
+							"raw": "{\n    \"customer_id\": \"{{customer_id}}\",\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 5\n        }\n    ],\n    \"payment_method\": \"kasbon\",\n    \"notes\": \"Hutang by Budi\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -710,38 +951,12 @@
 					}
 				},
 				{
-					"name": "Checkout - Kasbon Limit Exceeded (Edge Case)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 400\", function () {",
-									"    pm.response.to.have.status(400);",
-									"});",
-									"",
-									"pm.test(\"Error message correct\", function () {",
-									"    pm.expect(pm.response.text()).to.include(\"limit exceeded\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
+					"name": "Get Transaction List",
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"customer_id\": \"{{bad_customer_id}}\",\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 50\n        }\n    ],\n    \"payment_method\": \"kasbon\",\n    \"amount_paid\": 0\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/transactions",
+							"raw": "{{base_url}}/api/v1/transactions?page=1&per_page=10",
 							"host": [
 								"{{base_url}}"
 							],
@@ -749,234 +964,149 @@
 								"api",
 								"v1",
 								"transactions"
-							]
-						}
-					}
-				},
-				{
-					"name": "Checkout - Insufficient Stock (Edge Case)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 400\", function () {",
-									"    pm.response.to.have.status(400);",
-									"});",
-									"",
-									"pm.test(\"Error indicates stock issue\", function () {",
-									"    pm.expect(pm.response.text()).to.include(\"insufficient stock\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 99999\n        }\n    ],\n    \"payment_method\": \"cash\",\n    \"amount_paid\": 999999999\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/transactions",
-							"host": [
-								"{{base_url}}"
 							],
-							"path": [
-								"api",
-								"v1",
-								"transactions"
-							]
-						}
-					}
-				},
-				{
-					"name": "5. Kasbon Management",
-					"item": [
-						{
-							"name": "Get Customer Kasbon History",
-							"event": [
+							"query": [
 								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
-											"    pm.response.to.have.status(200);",
-											"});",
-											"",
-											"var jsonData = pm.response.json();",
-											"pm.expect(jsonData.data.length).to.be.above(0);"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/customers/{{customer_id}}/kasbon",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"customers",
-										"{{customer_id}}",
-										"kasbon"
-									]
-								}
-							}
-						},
-						{
-							"name": "Record Kasbon Payment",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"pm.test(\"Status code is 201\", function () {",
-											"    pm.response.to.have.status(201);",
-											"});"
-										],
-										"type": "text/javascript"
-									}
-								}
-							],
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"amount\": 10000,\n    \"notes\": \"Bayar cicilan pertama\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
+									"key": "page",
+									"value": "1"
 								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/customers/{{customer_id}}/kasbon/pay",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"customers",
-										"{{customer_id}}",
-										"kasbon",
-										"pay"
-									]
+								{
+									"key": "per_page",
+									"value": "10"
 								}
-							}
+							]
 						}
-					]
+					}
 				},
 				{
-					"name": "6. Reporting",
-					"item": [
-						{
-							"name": "Get Dashboard",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
-											"    pm.response.to.have.status(200);",
-											"});",
-											"",
-											"var jsonData = pm.response.json();",
-											"pm.expect(jsonData.data.today.total_transactions).to.be.at.least(1);"
-										],
-										"type": "text/javascript"
-									}
-								}
+					"name": "Get Transaction by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/transactions/{{transaction_id}}",
+							"host": [
+								"{{base_url}}"
 							],
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/reports/dashboard",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"reports",
-										"dashboard"
-									]
-								}
-							}
-						},
-						{
-							"name": "Get Daily Report",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/reports/daily",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"reports",
-										"daily"
-									]
-								}
-							}
+							"path": [
+								"api",
+								"v1",
+								"transactions",
+								"{{transaction_id}}"
+							]
 						}
-					]
+					}
 				},
 				{
-					"name": "7. Clean Up (Optional)",
-					"item": [
-						{
-							"name": "Cancel Transaction (Void)",
-							"event": [
-								{
-									"listen": "test",
-									"script": {
-										"exec": [
-											"pm.test(\"Status code is 200\", function () {",
-											"    pm.response.to.have.status(200);",
-											"});"
-										],
-										"type": "text/javascript"
-									}
-								}
+					"name": "Cancel Transaction",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/transactions/{{transaction_kasbon_id}}/cancel",
+							"host": [
+								"{{base_url}}"
 							],
-							"request": {
-								"method": "POST",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/transactions/{{transaction_id_kasbon}}/cancel",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"transactions",
-										"{{transaction_id_kasbon}}",
-										"cancel"
-									]
-								}
-							}
+							"path": [
+								"api",
+								"v1",
+								"transactions",
+								"{{transaction_kasbon_id}}",
+								"cancel"
+							]
 						}
-					]
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Reports",
+			"item": [
+				{
+					"name": "Dashboard Summary",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reports/dashboard",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"reports",
+								"dashboard"
+							]
+						}
+					}
+				},
+				{
+					"name": "Daily Sales Report",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reports/daily?start_date=2024-01-01&end_date=2024-12-31",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"reports",
+								"daily"
+							],
+							"query": [
+								{
+									"key": "start_date",
+									"value": "2024-01-01"
+								},
+								{
+									"key": "end_date",
+									"value": "2024-12-31"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Kasbon Report",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reports/kasbon",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"reports",
+								"kasbon"
+							]
+						}
+					}
+				},
+				{
+					"name": "Inventory Value Report",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reports/inventory",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"reports",
+								"inventory"
+							]
+						}
+					}
 				}
 			]
 		}
@@ -985,6 +1115,51 @@
 		{
 			"key": "base_url",
 			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refresh_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "product_id_1",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "product_barcode_1",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "product_id_2",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "customer_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "transaction_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "transaction_kasbon_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "tier_id",
+			"value": "",
 			"type": "string"
 		}
 	]
