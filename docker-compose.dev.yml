@@ -1,0 +1,27 @@
+version: '3.8'
+
+# Development override for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Development API with hot reload
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: warung-api-dev
+    environment:
+      - APP_ENV=development
+      - LOG_LEVEL=debug
+    volumes:
+      - .:/app
+      - go_modules:/go/pkg/mod
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+      - minio
+
+volumes:
+  go_modules:
