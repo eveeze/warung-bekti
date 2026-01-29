@@ -32,7 +32,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	v.Required("password", req.Password, "password is required")
 	v.MinLength("password", req.Password, 6, "password must be at least 6 characters")
 	v.Required("role", string(req.Role), "role is required")
-	v.InSlice("role", string(req.Role), []string{"admin", "cashier", "inventory"}, "invalid role")
+	v.InSlice("role", string(req.Role), []string{"cashier", "inventory"}, "invalid role: admin registration is restricted")
 
 	if v.HasErrors() {
 		response.ValidationError(w, v.Errors())
