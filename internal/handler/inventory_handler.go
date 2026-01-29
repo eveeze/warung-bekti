@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/eveeze/warung-backend/internal/domain"
+	"github.com/eveeze/warung-backend/internal/pkg/pdf"
 	"github.com/eveeze/warung-backend/internal/pkg/response"
 	"github.com/eveeze/warung-backend/internal/pkg/validator"
 	"github.com/eveeze/warung-backend/internal/repository"
@@ -158,4 +160,56 @@ func (h *InventoryHandler) GetReport(w http.ResponseWriter, r *http.Request) {
 	report.LowStockProducts = lowStock
 
 	response.OK(w, "Stock report retrieved", report)
+}
+
+// DownloadRestockPDF generates and downloads PDF for low-stock products
+func (h *InventoryHandler) DownloadRestockPDF(w http.ResponseWriter, r *http.Request) {
+	// Get low stock products
+	lowStockProducts, err := h.productRepo.GetLowStockProducts(r.Context())
+	if err != nil {
+		response.InternalServerError(w, "Failed to get low stock products")
+		return
+	}
+
+	if len(lowStockProducts) == 0 {
+		response.BadRequest(w, "No low stock products found")
+		return
+	}
+
+	// Convert to RestockItems
+	items := make([]pdf.RestockItem, len(lowStockProducts))
+	for i, p := range lowStockProducts {
+		items[i] = pdf.RestockItem{
+			ProductName:  p.Product.Name,
+			CurrentStock: p.Product.CurrentStock,
+			MinStock:     p.Product.MinStockAlert,
+			Deficit:      p.DeficitAmount,
+			Unit:         p.Product.Unit,
+			CostPrice:    p.Product.CostPrice,
+		}
+	}
+
+	// Generate PDF
+	pdfData := pdf.RestockData{
+		StoreName:    "Warung Kelontong",
+		StoreAddress: "Jl. Contoh No. 123",
+		GeneratedAt:  time.Now(),
+		Items:        items,
+	}
+
+	pdfDoc, err := pdf.GenerateRestockPDF(pdfData)
+	if err != nil {
+		response.InternalServerError(w, "Failed to generate PDF")
+		return
+	}
+
+	// Set headers for PDF download
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename=restock_list.pdf")
+
+	// Output PDF to response
+	if err := pdfDoc.Output(w); err != nil {
+		response.InternalServerError(w, "Failed to output PDF")
+		return
+	}
 }

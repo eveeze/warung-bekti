@@ -49,9 +49,12 @@ func New(
 	consignmentSvc := service.NewConsignmentService(db, consignmentRepo, transactionRepo)
 	refillableSvc := service.NewRefillableService(db, refillableRepo)
 
+	// Initialize cache service
+	cacheSvc := service.NewCacheService(redis)
+
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler(db, redis, minio)
-	productHandler := handler.NewProductHandler(productRepo)
+	productHandler := handler.NewProductHandler(productRepo, minio, cacheSvc)
 	customerHandler := handler.NewCustomerHandler(customerRepo)
 	transactionHandler := handler.NewTransactionHandler(transactionSvc, transactionRepo)
 	kasbonHandler := handler.NewKasbonHandler(kasbonRepo, customerRepo)
@@ -138,6 +141,7 @@ func New(
 	mux.HandleFunc("POST "+apiPrefix+"/inventory/adjust", adminOnly(inventoryHandler.Adjust)) // Admin only manual adjustment
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/low-stock", inventoryAccess(inventoryHandler.GetLowStock))
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/report", inventoryAccess(inventoryHandler.GetReport))
+	mux.HandleFunc("GET "+apiPrefix+"/inventory/restock-list/pdf", inventoryAccess(inventoryHandler.DownloadRestockPDF))
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/{productId}/movements", inventoryAccess(inventoryHandler.GetMovements))
 
 	// Reports - Admin Only

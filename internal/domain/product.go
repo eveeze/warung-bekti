@@ -119,22 +119,23 @@ func (p *Product) EstimatedProfit() int64 {
 
 // ProductCreateInput is the input for creating a product
 type ProductCreateInput struct {
-	Barcode       *string           `json:"barcode,omitempty"`
-	SKU           *string           `json:"sku,omitempty"`
-	Name          string            `json:"name"`
-	Description   *string           `json:"description,omitempty"`
-	CategoryID    *uuid.UUID        `json:"category_id,omitempty"`
-	Unit          string            `json:"unit"`
-	BasePrice     int64             `json:"base_price"`
-	CostPrice     int64             `json:"cost_price"`
-	IsStockActive *bool             `json:"is_stock_active,omitempty"`
-	CurrentStock  *int              `json:"current_stock,omitempty"`
-	MinStockAlert *int              `json:"min_stock_alert,omitempty"`
-	MaxStock       *int              `json:"max_stock,omitempty"`
-	IsRefillable   *bool             `json:"is_refillable,omitempty"`
+	Barcode       *string            `json:"barcode,omitempty"`
+	SKU           *string            `json:"sku,omitempty"`
+	Name          string             `json:"name"`
+	Description   *string            `json:"description,omitempty"`
+	CategoryID    *uuid.UUID         `json:"category_id,omitempty"`
+	Unit          string             `json:"unit"`
+	BasePrice     int64              `json:"base_price"`
+	CostPrice     int64              `json:"cost_price"`
+	IsStockActive *bool              `json:"is_stock_active,omitempty"`
+	CurrentStock  *int               `json:"current_stock,omitempty"`
+	MinStockAlert *int               `json:"min_stock_alert,omitempty"`
+	MaxStock      *int               `json:"max_stock,omitempty"`
+	IsRefillable  *bool              `json:"is_refillable,omitempty"`
 	EmptyProductID *uuid.UUID        `json:"empty_product_id,omitempty"`
 	FullProductID  *uuid.UUID        `json:"full_product_id,omitempty"`
 	PricingTiers   []PricingTierInput `json:"pricing_tiers,omitempty"`
+	ImageURL       *string            `json:"image_url,omitempty"`
 }
 
 // ProductUpdateInput is the input for updating a product
@@ -149,11 +150,12 @@ type ProductUpdateInput struct {
 	CostPrice     *int64     `json:"cost_price,omitempty"`
 	IsStockActive *bool      `json:"is_stock_active,omitempty"`
 	MinStockAlert *int       `json:"min_stock_alert,omitempty"`
-	MaxStock       *int       `json:"max_stock,omitempty"`
-	IsRefillable   *bool      `json:"is_refillable,omitempty"`
+	MaxStock      *int       `json:"max_stock,omitempty"`
+	IsRefillable  *bool      `json:"is_refillable,omitempty"`
 	EmptyProductID *uuid.UUID `json:"empty_product_id,omitempty"`
 	FullProductID  *uuid.UUID `json:"full_product_id,omitempty"`
-	IsActive       *bool      `json:"is_active,omitempty"`
+	IsActive      *bool      `json:"is_active,omitempty"`
+	ImageURL      *string    `json:"image_url,omitempty"`
 }
 
 // PricingTierInput is the input for creating/updating a pricing tier

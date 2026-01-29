@@ -42,8 +42,8 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 		INSERT INTO products (
 			barcode, sku, name, description, category_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
-			min_stock_alert, max_stock
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			min_stock_alert, max_stock, image_url
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id, barcode, sku, name, description, category_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
@@ -53,7 +53,7 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 	err := r.db.QueryRowContext(ctx, query,
 		input.Barcode, input.SKU, input.Name, input.Description,
 		input.CategoryID, input.Unit, input.BasePrice, input.CostPrice,
-		isStockActive, currentStock, minStockAlert, input.MaxStock,
+		isStockActive, currentStock, minStockAlert, input.MaxStock, input.ImageURL,
 	).Scan(
 		&product.ID, &product.Barcode, &product.SKU, &product.Name,
 		&product.Description, &product.CategoryID, &product.Unit,
@@ -327,6 +327,11 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 	if input.IsActive != nil {
 		setClauses = append(setClauses, fmt.Sprintf("is_active = $%d", argIndex))
 		args = append(args, *input.IsActive)
+		argIndex++
+	}
+	if input.ImageURL != nil {
+		setClauses = append(setClauses, fmt.Sprintf("image_url = $%d", argIndex))
+		args = append(args, input.ImageURL)
 		argIndex++
 	}
 

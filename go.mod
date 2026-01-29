@@ -3,6 +3,8 @@ module github.com/eveeze/warung-backend
 go 1.24.0
 
 require (
+	github.com/disintegration/imaging v1.6.2
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.10.9
@@ -10,7 +12,7 @@ require (
 	github.com/redis/go-redis/v9 v9.17.3
 )
 
-require github.com/go-pdf/fpdf v0.9.0 // indirect
+require golang.org/x/image v0.12.0 // indirect
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

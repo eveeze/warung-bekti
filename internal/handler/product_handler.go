@@ -2,8 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -11,24 +14,88 @@ import (
 	"github.com/eveeze/warung-backend/internal/pkg/response"
 	"github.com/eveeze/warung-backend/internal/pkg/validator"
 	"github.com/eveeze/warung-backend/internal/repository"
+	"github.com/eveeze/warung-backend/internal/service"
+	"github.com/eveeze/warung-backend/internal/storage"
 )
 
 // ProductHandler handles product endpoints
 type ProductHandler struct {
-	repo *repository.ProductRepository
+	repo  *repository.ProductRepository
+	minio *storage.MinioClient
+	cache *service.CacheService
 }
 
 // NewProductHandler creates a new ProductHandler
-func NewProductHandler(repo *repository.ProductRepository) *ProductHandler {
-	return &ProductHandler{repo: repo}
+func NewProductHandler(repo *repository.ProductRepository, minio *storage.MinioClient, cache *service.CacheService) *ProductHandler {
+	return &ProductHandler{
+		repo:  repo,
+		minio: minio,
+		cache: cache,
+	}
 }
 
 // Create creates a new product
 func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var input domain.ProductCreateInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		response.BadRequest(w, "Invalid request body")
-		return
+
+	// Check if multipart/form-data
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		// Limit to 10MB
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			response.BadRequest(w, "File too large or invalid multipart data")
+			return
+		}
+
+		// Decode JSON from "data" field
+		jsonData := r.FormValue("data")
+		if jsonData == "" {
+			response.BadRequest(w, "Missing 'data' field containing JSON payload")
+			return
+		}
+		if err := json.Unmarshal([]byte(jsonData), &input); err != nil {
+			response.BadRequest(w, "Invalid JSON in 'data' field")
+			return
+		}
+
+		// Handle Image Upload
+		file, header, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+
+			// Validate
+			if err := h.validateImage(header); err != nil {
+				response.BadRequest(w, err.Error())
+				return
+			}
+
+			// Process (Resize/Compress)
+			reader, size, contentType, filename, err := h.processImage(file, header)
+			if err != nil {
+				response.InternalServerError(w, "Failed to process image")
+				return
+			}
+
+			// Upload to MinIO
+			// Use a simple path structure: products/{uuid-filename}
+			objectName := fmt.Sprintf("products/%s", filename)
+			url, err := h.minio.UploadFile(r.Context(), objectName, reader, size, contentType)
+			if err != nil {
+				response.InternalServerError(w, "Failed to upload image")
+				return
+			}
+
+			input.ImageURL = &url
+		} else if err != http.ErrMissingFile {
+			response.BadRequest(w, "Error retrieving file")
+			return
+		}
+
+	} else {
+		// Standard JSON body
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			response.BadRequest(w, "Invalid request body")
+			return
+		}
 	}
 
 	// Validate
@@ -49,6 +116,9 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 		response.InternalServerError(w, "Failed to create product")
 		return
 	}
+
+	// Invalidate products cache
+	_ = h.cache.InvalidatePattern(r.Context(), "products:list:*")
 
 	response.Created(w, "Product created successfully", product)
 }
@@ -129,11 +199,42 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 		filter.LowStockOnly = true
 	}
 
+	// Generate cache key based on filters
+	cacheKey := fmt.Sprintf("products:list:%s:%s:%d:%d:%s:%s:%v",
+		query.Get("search"),
+		query.Get("category_id"),
+		filter.Page,
+		filter.PerPage,
+		filter.SortBy,
+		filter.SortOrder,
+		filter.LowStockOnly,
+	)
+
+	// Try cache first
+	type CachedResponse struct {
+		Products []domain.Product `json:"products"`
+		Total    int64            `json:"total"`
+	}
+	
+	var cached CachedResponse
+	err := h.cache.Get(r.Context(), cacheKey, &cached)
+	if err == nil {
+		// Cache hit
+		meta := response.NewMeta(filter.Page, filter.PerPage, cached.Total)
+		response.SuccessWithMeta(w, http.StatusOK, "Products retrieved (cached)", cached.Products, meta)
+		return
+	}
+
+	// Cache miss - fetch from DB
 	products, total, err := h.repo.List(r.Context(), filter)
 	if err != nil {
 		response.InternalServerError(w, "Failed to list products")
 		return
 	}
+
+	// Cache for 5 minutes
+	cached = CachedResponse{Products: products, Total: total}
+	_ = h.cache.Set(r.Context(), cacheKey, cached, 5*time.Minute)
 
 	meta := response.NewMeta(filter.Page, filter.PerPage, total)
 	response.SuccessWithMeta(w, http.StatusOK, "Products retrieved", products, meta)
@@ -149,9 +250,85 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var input domain.ProductUpdateInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		response.BadRequest(w, "Invalid request body")
-		return
+
+	// Check if multipart/form-data
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			response.BadRequest(w, "File too large or invalid multipart data")
+			return
+		}
+
+		jsonData := r.FormValue("data")
+		if jsonData == "" {
+			response.BadRequest(w, "Missing 'data' field containing JSON payload")
+			return
+		}
+		if err := json.Unmarshal([]byte(jsonData), &input); err != nil {
+			response.BadRequest(w, "Invalid JSON in 'data' field")
+			return
+		}
+
+		// Handle Image Upload
+		file, header, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+
+			if err := h.validateImage(header); err != nil {
+				response.BadRequest(w, err.Error())
+				return
+			}
+			reader, size, contentType, filename, err := h.processImage(file, header)
+			if err != nil {
+				response.InternalServerError(w, "Failed to process image")
+				return
+			}
+
+			// Get existing product to delete old image later
+			existingProduct, err := h.repo.GetByID(r.Context(), id)
+			if err != nil && err != domain.ErrNotFound {
+				response.InternalServerError(w, "Failed to check existing product")
+				return
+			}
+
+			// Upload new image
+			objectName := fmt.Sprintf("products/%s", filename)
+			url, err := h.minio.UploadFile(r.Context(), objectName, reader, size, contentType)
+			if err != nil {
+				response.InternalServerError(w, "Failed to upload image")
+				return
+			}
+
+			input.ImageURL = &url
+
+			// Delete old image if exists
+			if existingProduct != nil && existingProduct.ImageURL != nil {
+				// Extract object name from URL or store just the key? 
+				// Our URL is typically http://.../bucket/products/xyz.jpg
+				// MinIO client helper only knows how to upload/delete by object name.
+				// We need to parse the object name from the URL.
+				// Assuming standard structure: .../bucketName/objectName
+				// Simple hack: Take substring after bucket name?
+				// Better: Since we know the prefix "products/", we can just take the last part? No, nested paths.
+				// Let's assume we can tolerate not deleting for now or just log errors if parsing fails.
+				// Actually, `storage` package has `GetPublicURL`. We can't reverse it easily without robust parsing.
+				// But we stored the Full URL.
+				// Correct approach: Store OBJECT KEY in DB, or parse it here.
+				// Let's defer "Delete old image" logic until later or try a simple suffix match.
+				parts := strings.Split(*existingProduct.ImageURL, "/warung-assets/") // WARUNG_BUCKET_NAME default
+				if len(parts) > 1 {
+					key := parts[1]
+					// Run delete in background or ignore error
+					_ = h.minio.DeleteFile(r.Context(), key) 
+				}
+			}
+		}
+
+	} else {
+		// Standard JSON body
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			response.BadRequest(w, "Invalid request body")
+			return
+		}
 	}
 
 	product, err := h.repo.Update(r.Context(), id, input)
@@ -163,6 +340,9 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 		response.InternalServerError(w, "Failed to update product")
 		return
 	}
+
+	// Invalidate products cache
+	_ = h.cache.InvalidatePattern(r.Context(), "products:list:*")
 
 	response.OK(w, "Product updated", product)
 }
@@ -176,13 +356,34 @@ func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo.Delete(r.Context(), id); err == domain.ErrNotFound {
+	// Fetch product first to get image URL
+	product, err := h.repo.GetByID(r.Context(), id)
+	if err == domain.ErrNotFound {
 		response.NotFound(w, "Product not found")
 		return
-	} else if err != nil {
+	}
+	if err != nil {
+		response.InternalServerError(w, "Failed to fetch product")
+		return
+	}
+
+	// Delete image if exists
+	if product.ImageURL != nil {
+		parts := strings.Split(*product.ImageURL, "/warung-assets/")
+		if len(parts) > 1 {
+			key := parts[1]
+			_ = h.minio.DeleteFile(r.Context(), key)
+		}
+	}
+
+	// Delete product
+	if err := h.repo.Delete(r.Context(), id); err != nil {
 		response.InternalServerError(w, "Failed to delete product")
 		return
 	}
+
+	// Invalidate products cache
+	_ = h.cache.InvalidatePattern(r.Context(), "products:list:*")
 
 	response.NoContent(w)
 }

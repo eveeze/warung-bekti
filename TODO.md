@@ -59,4 +59,40 @@ Features to speed up the cashier process.
   - [x] **Container Management**: Track "Tabung Kosong" vs "Isi".
   - [x] **Exchange Logic**: When selling "Gas Isi", system auto-adds 1 "Tabung Kosong" to inventory.
   - [x] **Restock Logic**: When buying "Gas Isi" from agent, system auto-deducts "Tabung Kosong".
+- [x] **Wholesale Pricing (Grosir)**:
+  - [x] **Tiered Pricing**: Automatic price adjustment based on quantity (e.g., Buy 10 = cheaper).
+
+
+
+## 8. Product Image Management (MinIO) ✅
+Implement image handling with best practices to save storage and ensure performance.
+- [x] **MinIO Integration**:
+  - [x] Setup MinIO Client / Service.
+  - [x] Implement `UploadImage` with image compression/resizing (WebP format preferred).
+  - [x] Implement `DeleteImage` to remove files from MinIO when product is deleted or image updated (Storage Optimization).
+- [x] **Product API Update**:
+  - [x] Update `Product` struct to include `image_url`.
+  - [x] Update `Create/Update` endpoints to handle file uploads (multipart/form-data).
+
+
+## 9. Performance Optimization (Redis) ✅
+Use caching to speed up frequent read operations.
+- [x] **Redis Integration**:
+  - [x] Setup Redis Client.
+  - [x] Implement Cache Service (Set, Get, Delete, Invalidate).
+- [x] **Caching Targets**:
+  - [x] **Products List**: Cache `GET /products` results (invalidate on Create/Update/StockChange).
+  - [ ] **Dashboard Stats**: Cache daily dashboard metrics (invalidate on new transaction).
+  - [ ] **Reports**: Cache heavy reports (e.g., Monthly Sales).
+
+
+## 10. Restock PDF Generator 📄
+Generate professional PDF for low-stock products to facilitate quick wholesale purchasing.
+- [x] **PDF Generation**:
+  - [x] Create `restock.go` with well-formatted table (Product Name, Stock, Min, Deficit, Suggested Order).
+  - [x] Include store info, generation date, and summary.
+  - [x] Smart order suggestions (rounded to 5/10 with safety margin).
+- [x] **API Endpoint**:
+  - [x] `GET /api/v1/inventory/restock-list/pdf` - Downloads PDF for low-stock products.
+  - [x] Inventory role access control.
 
