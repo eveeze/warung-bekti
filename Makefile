@@ -96,6 +96,10 @@ deps:
 
 tidy:
 	@go mod tidy
+	
+# Data Seeding
+seed:
+	@go run cmd/seeder/main.go
 
 # Install development tools
 tools:

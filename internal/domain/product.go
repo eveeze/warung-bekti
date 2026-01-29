@@ -22,8 +22,11 @@ type Product struct {
 	CurrentStock  int        `json:"current_stock"`
 	MinStockAlert int        `json:"min_stock_alert"`
 	MaxStock      *int       `json:"max_stock,omitempty"`
-	ImageURL      *string    `json:"image_url,omitempty"`
-	IsActive      bool       `json:"is_active"`
+	ImageURL       *string    `json:"image_url,omitempty"`
+	IsRefillable   bool       `json:"is_refillable"`
+	EmptyProductID *uuid.UUID `json:"empty_product_id,omitempty"`
+	FullProductID  *uuid.UUID `json:"full_product_id,omitempty"`
+	IsActive       bool       `json:"is_active"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 
@@ -127,8 +130,11 @@ type ProductCreateInput struct {
 	IsStockActive *bool             `json:"is_stock_active,omitempty"`
 	CurrentStock  *int              `json:"current_stock,omitempty"`
 	MinStockAlert *int              `json:"min_stock_alert,omitempty"`
-	MaxStock      *int              `json:"max_stock,omitempty"`
-	PricingTiers  []PricingTierInput `json:"pricing_tiers,omitempty"`
+	MaxStock       *int              `json:"max_stock,omitempty"`
+	IsRefillable   *bool             `json:"is_refillable,omitempty"`
+	EmptyProductID *uuid.UUID        `json:"empty_product_id,omitempty"`
+	FullProductID  *uuid.UUID        `json:"full_product_id,omitempty"`
+	PricingTiers   []PricingTierInput `json:"pricing_tiers,omitempty"`
 }
 
 // ProductUpdateInput is the input for updating a product
@@ -143,8 +149,11 @@ type ProductUpdateInput struct {
 	CostPrice     *int64     `json:"cost_price,omitempty"`
 	IsStockActive *bool      `json:"is_stock_active,omitempty"`
 	MinStockAlert *int       `json:"min_stock_alert,omitempty"`
-	MaxStock      *int       `json:"max_stock,omitempty"`
-	IsActive      *bool      `json:"is_active,omitempty"`
+	MaxStock       *int       `json:"max_stock,omitempty"`
+	IsRefillable   *bool      `json:"is_refillable,omitempty"`
+	EmptyProductID *uuid.UUID `json:"empty_product_id,omitempty"`
+	FullProductID  *uuid.UUID `json:"full_product_id,omitempty"`
+	IsActive       *bool      `json:"is_active,omitempty"`
 }
 
 // PricingTierInput is the input for creating/updating a pricing tier
@@ -170,7 +179,9 @@ type ProductFilter struct {
 
 // DefaultFilter returns a filter with default values
 func DefaultFilter() ProductFilter {
+	isActive := true
 	return ProductFilter{
+		IsActive:  &isActive,
 		Page:      1,
 		PerPage:   20,
 		SortBy:    "name",

@@ -10,6 +10,8 @@ require (
 	github.com/redis/go-redis/v9 v9.17.3
 )
 
+require github.com/go-pdf/fpdf v0.9.0 // indirect
+
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

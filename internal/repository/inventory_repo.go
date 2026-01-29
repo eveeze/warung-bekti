@@ -229,6 +229,26 @@ func (r *InventoryRepository) DeductStock(ctx context.Context, tx *sql.Tx, produ
 	return err
 }
 
+// RecordMovement records a stock movement with specified parameters (for external callers like stock opname)
+func (r *InventoryRepository) RecordMovement(ctx context.Context, tx *sql.Tx, productID uuid.UUID, movementType domain.StockMovementType,
+	quantity, stockBefore, stockAfter int, refType string, refID *uuid.UUID, costPerUnit *int64, notes string, createdBy *string) error {
+
+	movement := &domain.StockMovement{
+		ProductID:     productID,
+		Type:          movementType,
+		Quantity:      quantity,
+		StockBefore:   stockBefore,
+		StockAfter:    stockAfter,
+		ReferenceType: &refType,
+		ReferenceID:   refID,
+		CostPerUnit:   costPerUnit,
+		Notes:         &notes,
+		CreatedBy:     createdBy,
+	}
+
+	return r.CreateMovement(ctx, tx, movement)
+}
+
 // GetStockReport returns stock inventory report
 func (r *InventoryRepository) GetStockReport(ctx context.Context) (*domain.StockReport, error) {
 	query := `

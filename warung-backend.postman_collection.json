@@ -1,1166 +1,3054 @@
 {
-	"info": {
-		"_postman_id": "warung-os-backend",
-		"name": "WarungOS Backend API",
-		"description": "Comprehensive test collection for WarungOS Backend. Includes Happy Paths, Edge Cases, and automated workflows.",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
-	"auth": {
-		"type": "bearer",
-		"bearer": [
-			{
-				"key": "token",
-				"value": "{{access_token}}",
-				"type": "string"
-			}
-		]
-	},
-	"item": [
-		{
-			"name": "0. Health Checks",
-			"auth": {
-				"type": "noauth"
-			},
-			"item": [
-				{
-					"name": "Check System Health",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test(\"System is healthy\", function () {",
-									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.status).to.eql(\"healthy\");",
-									"    pm.expect(jsonData.services.database).to.eql(\"up\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/health",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"health"
-							]
-						}
-					}
-				},
-				{
-					"name": "Readiness Check",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/ready",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"ready"
-							]
-						}
-					}
-				},
-				{
-					"name": "Liveness Check",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/live",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"live"
-							]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "1. Authentication",
-			"item": [
-				{
-					"name": "Register Admin",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"Admin User\",\n    \"email\": \"admin@example.com\",\n    \"password\": \"securepassword123\",\n    \"role\": \"admin\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/auth/register",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"register"
-							]
-						}
-					}
-				},
-				{
-					"name": "Login",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"var jsonData = pm.response.json();",
-									"if (jsonData.data && jsonData.data.access_token) {",
-									"    pm.environment.set(\"access_token\", jsonData.data.access_token);",
-									"    pm.environment.set(\"refresh_token\", jsonData.data.refresh_token);",
-									"    console.log(\"Access Token updated\");",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"securepassword123\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/auth/login",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"login"
-							]
-						}
-					}
-				},
-				{
-					"name": "Refresh Token",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"var jsonData = pm.response.json();",
-									"if (jsonData.data && jsonData.data.access_token) {",
-									"    pm.environment.set(\"access_token\", jsonData.data.access_token);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/auth/refresh",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"auth",
-								"refresh"
-							]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "2. Products",
-			"item": [
-				{
-					"name": "Create Product (Stock Active)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"var jsonData = pm.response.json();",
-									"pm.environment.set(\"product_id_1\", jsonData.data.id);",
-									"pm.environment.set(\"product_barcode_1\", jsonData.data.barcode);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"Indomie Goreng\",\n    \"sku\": \"IND-GRG-001\",\n    \"barcode\": \"8998888123456\",\n    \"unit\": \"pcs\",\n    \"base_price\": 3500,\n    \"cost_price\": 2800,\n    \"is_stock_active\": true,\n    \"current_stock\": 100,\n    \"min_stock_alert\": 10,\n    \"pricing_tiers\": [\n        {\"name\": \"Grosir\", \"min_quantity\": 12, \"price\": 3000}\n    ]\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/products",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products"
-							]
-						}
-					}
-				},
-				{
-					"name": "Create Product (Service/No Stock)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"var jsonData = pm.response.json();",
-									"pm.environment.set(\"product_id_2\", jsonData.data.id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"Jasa Bungkus Kado\",\n    \"unit\": \"service\",\n    \"base_price\": 5000,\n    \"cost_price\": 0,\n    \"is_stock_active\": false\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/products",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products"
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Product List",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/products?page=1&per_page=10",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products"
-							],
-							"query": [
-								{
-									"key": "page",
-									"value": "1"
-								},
-								{
-									"key": "per_page",
-									"value": "10"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Search by Barcode",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/products/search?barcode={{product_barcode_1}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products",
-								"search"
-							],
-							"query": [
-								{
-									"key": "barcode",
-									"value": "{{product_barcode_1}}"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Low Stock Products",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/products/low-stock",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products",
-								"low-stock"
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Product by ID",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products",
-								"{{product_id_1}}"
-							]
-						}
-					}
-				},
-				{
-					"name": "Update Product",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"Indomie Goreng Special\",\n    \"base_price\": 3600\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products",
-								"{{product_id_1}}"
-							]
-						}
-					}
-				},
-				{
-					"name": "Add Pricing Tier",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"pm.environment.set(\"tier_id\", jsonData.data.id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"Kartonan\",\n    \"min_quantity\": 40,\n    \"price\": 2800\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}/pricing-tiers",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products",
-								"{{product_id_1}}",
-								"pricing-tiers"
-							]
-						}
-					}
-				},
-				{
-					"name": "Update Pricing Tier",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"price\": 2750\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}/pricing-tiers/{{tier_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products",
-								"{{product_id_1}}",
-								"pricing-tiers",
-								"{{tier_id}}"
-							]
-						}
-					}
-				},
-				{
-					"name": "Delete Pricing Tier",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/products/{{product_id_1}}/pricing-tiers/{{tier_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products",
-								"{{product_id_1}}",
-								"pricing-tiers",
-								"{{tier_id}}"
-							]
-						}
-					}
-				},
-				{
-					"name": "Delete Product (Soft)",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/products/{{product_id_2}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"products",
-								"{{product_id_2}}"
-							]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "3. Customers",
-			"item": [
-				{
-					"name": "Create Customer",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"var jsonData = pm.response.json();",
-									"pm.environment.set(\"customer_id\", jsonData.data.id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"Budi Santoso\",\n    \"phone\": \"08123456789\",\n    \"address\": \"Jl. Merdeka No. 45\",\n    \"credit_limit\": 500000,\n    \"notes\": \"Pelanggan setia\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/customers",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"customers"
-							]
-						}
-					}
-				},
-				{
-					"name": "List Customers",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/customers",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"customers"
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Customers with Debt",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/customers/with-debt",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"customers",
-								"with-debt"
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Customer by ID",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"customers",
-								"{{customer_id}}"
-							]
-						}
-					}
-				},
-				{
-					"name": "Update Customer",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"credit_limit\": 750000,\n    \"notes\": \"Limit dinaikkan\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"customers",
-								"{{customer_id}}"
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Kasbon History",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}/kasbon",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"customers",
-								"{{customer_id}}",
-								"kasbon"
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Kasbon Summary",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}/kasbon/summary",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"customers",
-								"{{customer_id}}",
-								"kasbon",
-								"summary"
-							]
-						}
-					}
-				},
-				{
-					"name": "Record Kasbon Payment",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"amount\": 50000,\n    \"notes\": \"Bayar sebagian via transfer\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/customers/{{customer_id}}/kasbon/pay",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"customers",
-								"{{customer_id}}",
-								"kasbon",
-								"pay"
-							]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "4. Inventory",
-			"item": [
-				{
-					"name": "Restock Product",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"quantity\": 50,\n    \"cost_per_unit\": 2700,\n    \"notes\": \"Restock mingguan dari Supplier A\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/inventory/restock",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"inventory",
-								"restock"
-							]
-						}
-					}
-				},
-				{
-					"name": "Adjust Stock",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"quantity\": -2,\n    \"reason\": \"Barang rusak (hujan)\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/inventory/adjust",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"inventory",
-								"adjust"
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Inventory Movements",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/inventory/{{product_id_1}}/movements",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"inventory",
-								"{{product_id_1}}",
-								"movements"
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Inventory Report",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/inventory/report",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"inventory",
-								"report"
-							]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "5. Transactions (POS)",
-			"item": [
-				{
-					"name": "Calculate Cart (Preview)",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 13\n        }\n    ]\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/transactions/calculate",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"transactions",
-								"calculate"
-							]
-						}
-					}
-				},
-				{
-					"name": "Create Transaction (Cash)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 201\", function () {",
-									"    pm.response.to.have.status(201);",
-									"});",
-									"",
-									"var jsonData = pm.response.json();",
-									"pm.environment.set(\"transaction_id\", jsonData.data.id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 2\n        }\n    ],\n    \"payment_method\": \"cash\",\n    \"amount_paid\": 10000,\n    \"cashier_name\": \"Kasir 1\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/transactions",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"transactions"
-							]
-						}
-					}
-				},
-				{
-					"name": "Create Transaction (Kasbon)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var jsonData = pm.response.json();",
-									"pm.environment.set(\"transaction_kasbon_id\", jsonData.data.id);"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"customer_id\": \"{{customer_id}}\",\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 5\n        }\n    ],\n    \"payment_method\": \"kasbon\",\n    \"notes\": \"Hutang by Budi\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/transactions",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"transactions"
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Transaction List",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/transactions?page=1&per_page=10",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"transactions"
-							],
-							"query": [
-								{
-									"key": "page",
-									"value": "1"
-								},
-								{
-									"key": "per_page",
-									"value": "10"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Get Transaction by ID",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/transactions/{{transaction_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"transactions",
-								"{{transaction_id}}"
-							]
-						}
-					}
-				},
-				{
-					"name": "Cancel Transaction",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/transactions/{{transaction_kasbon_id}}/cancel",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"transactions",
-								"{{transaction_kasbon_id}}",
-								"cancel"
-							]
-						}
-					}
-				}
-			]
-		},
-		{
-			"name": "6. Reports",
-			"item": [
-				{
-					"name": "Dashboard Summary",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/reports/dashboard",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"reports",
-								"dashboard"
-							]
-						}
-					}
-				},
-				{
-					"name": "Daily Sales Report",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/reports/daily?start_date=2024-01-01&end_date=2024-12-31",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"reports",
-								"daily"
-							],
-							"query": [
-								{
-									"key": "start_date",
-									"value": "2024-01-01"
-								},
-								{
-									"key": "end_date",
-									"value": "2024-12-31"
-								}
-							]
-						}
-					}
-				},
-				{
-					"name": "Kasbon Report",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/reports/kasbon",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"reports",
-								"kasbon"
-							]
-						}
-					}
-				},
-				{
-					"name": "Inventory Value Report",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/reports/inventory",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"reports",
-								"inventory"
-							]
-						}
-					}
-				}
-			]
-		}
-	],
-	"variable": [
-		{
-			"key": "base_url",
-			"value": "http://localhost:8080",
-			"type": "string"
-		},
-		{
-			"key": "access_token",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "refresh_token",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "product_id_1",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "product_barcode_1",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "product_id_2",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "customer_id",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "transaction_id",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "transaction_kasbon_id",
-			"value": "",
-			"type": "string"
-		},
-		{
-			"key": "tier_id",
-			"value": "",
-			"type": "string"
-		}
-	]
+    "info": {
+        "_postman_id": "warung-os-backend",
+        "name": "WarungOS Backend API",
+        "description": "Comprehensive test collection for WarungOS Backend. Includes Happy Paths, Edge Cases, and automated workflows.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "1. Admin Flow (All Requests)",
+            "item": [
+                {
+                    "name": "Auth",
+                    "item": [
+                        {
+                            "name": "Login",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "if (jsonData.data && jsonData.data.access_token) {",
+                                            "    pm.environment.set(\"access_token\", jsonData.data.access_token);",
+                                            "    pm.environment.set(\"refresh_token\", jsonData.data.refresh_token);",
+                                            "    console.log(\"Access Token updated\");",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"admin@warung.com\",\n    \"password\": \"password\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/auth/login",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Register Admin",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Admin User\",\n    \"email\": \"admin@example.com\",\n    \"password\": \"securepassword123\",\n    \"role\": \"admin\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/auth/register",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "auth",
+                                        "register"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Refresh Token",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "if (jsonData.data && jsonData.data.access_token) {",
+                                            "    pm.environment.set(\"access_token\", jsonData.data.access_token);",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/auth/refresh",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "auth",
+                                        "refresh"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Products",
+                    "item": [
+                        {
+                            "name": "Create Product (Stock Active)",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 201\", function () {",
+                                            "    pm.response.to.have.status(201);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "pm.environment.set(\"product_id_1\", jsonData.data.id);",
+                                            "pm.environment.set(\"product_barcode_1\", jsonData.data.barcode);"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Indomie Goreng {{$randomInt}}\",\n    \"sku\": \"IND-GRG-{{$randomInt}}\",\n    \"barcode\": \"899{{$randomInt}}888{{$randomInt}}\",\n    \"unit\": \"pcs\",\n    \"base_price\": 3500,\n    \"cost_price\": 2800,\n    \"is_stock_active\": true,\n    \"current_stock\": 100,\n    \"min_stock_alert\": 10,\n    \"pricing_tiers\": [\n        {\"name\": \"Grosir\", \"min_quantity\": 12, \"price\": 3000}\n    ]\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Product (Service/No Stock)",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 201\", function () {",
+                                            "    pm.response.to.have.status(201);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "pm.environment.set(\"product_id_2\", jsonData.data.id);"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Jasa Bungkus Kado\",\n    \"unit\": \"service\",\n    \"base_price\": 5000,\n    \"cost_price\": 0,\n    \"is_stock_active\": false\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Product List",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products?page=1&per_page=10",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "page",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "per_page",
+                                            "value": "10"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Update Product",
+                            "request": {
+                                "method": "PUT",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Indomie Goreng Special\",\n    \"base_price\": 3600\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products/{{product_id_1}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products",
+                                        "{{product_id_1}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Delete Product (Soft)",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products/{{product_id_2}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products",
+                                        "{{product_id_2}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Add Pricing Tier",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "var jsonData = pm.response.json();",
+                                            "pm.environment.set(\"tier_id\", jsonData.data.id);"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Kartonan\",\n    \"min_quantity\": 40,\n    \"price\": 2800\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products/{{product_id_1}}/pricing-tiers",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products",
+                                        "{{product_id_1}}",
+                                        "pricing-tiers"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Update Pricing Tier",
+                            "request": {
+                                "method": "PUT",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"price\": 2750\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products/{{product_id_1}}/pricing-tiers/{{tier_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products",
+                                        "{{product_id_1}}",
+                                        "pricing-tiers",
+                                        "{{tier_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Delete Pricing Tier",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products/{{product_id_1}}/pricing-tiers/{{tier_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products",
+                                        "{{product_id_1}}",
+                                        "pricing-tiers",
+                                        "{{tier_id}}"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Customers",
+                    "item": [
+                        {
+                            "name": "Create Customer",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 201\", function () {",
+                                            "    pm.response.to.have.status(201);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "pm.environment.set(\"customer_id\", jsonData.data.id);"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Budi Santoso\",\n    \"phone\": \"08123456789\",\n    \"address\": \"Jl. Merdeka No. 45\",\n    \"credit_limit\": 500000,\n    \"notes\": \"Pelanggan setia\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Customers",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Customers with Debt",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers/with-debt",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers",
+                                        "with-debt"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Customer by ID",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers/{{customer_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers",
+                                        "{{customer_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Update Customer",
+                            "request": {
+                                "method": "PUT",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"credit_limit\": 750000,\n    \"notes\": \"Limit dinaikkan\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers/{{customer_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers",
+                                        "{{customer_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Kasbon History",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/kasbon/customers/{{customer_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "kasbon",
+                                        "customers",
+                                        "{{customer_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Kasbon Summary",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/kasbon/customers/{{customer_id}}/summary",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "kasbon",
+                                        "customers",
+                                        "{{customer_id}}",
+                                        "summary"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Debt Transaction",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/transactions",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "transactions"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 2\n        }\n    ],\n    \"payment_method\": \"kasbon\",\n    \"customer_id\": \"{{customer_id}}\",\n    \"paid_amount\": 0,\n    \"notes\": \"Test Kasbon Payment Admin\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 201\", function () {",
+                                            "    pm.response.to.have.status(201);",
+                                            "});",
+                                            "var jsonData = pm.response.json();",
+                                            "if(jsonData.data && jsonData.data.id) {",
+                                            "    pm.environment.set(\"transaction_kasbon_id\", jsonData.data.id);",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Record Kasbon Payment",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"amount\": 50000,\n    \"notes\": \"Bayar sebagian via transfer\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/kasbon/customers/{{customer_id}}/payments",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "kasbon",
+                                        "customers",
+                                        "{{customer_id}}",
+                                        "payments"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Download Billing PDF",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/kasbon/customers/{{customer_id}}/billing/pdf",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "kasbon",
+                                        "customers",
+                                        "{{customer_id}}",
+                                        "billing",
+                                        "pdf"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Transactions",
+                    "item": [
+                        {
+                            "name": "Calculate Transaction",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/transactions/calculate",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "transactions",
+                                        "calculate"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 5\n        }\n    ],\n    \"payment_method\": \"cash\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Cancel Transaction",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/transactions/{{transaction_kasbon_id}}/cancel",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "transactions",
+                                        "{{transaction_kasbon_id}}",
+                                        "cancel"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Transactions",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/transactions?page=1&per_page=10&start_date=2024-01-01&end_date=2025-12-31",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "transactions"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "page",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "per_page",
+                                            "value": "10"
+                                        },
+                                        {
+                                            "key": "start_date",
+                                            "value": "2024-01-01"
+                                        },
+                                        {
+                                            "key": "end_date",
+                                            "value": "2025-12-31"
+                                        }
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Get Transaction Detail",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/transactions/{{transaction_kasbon_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "transactions",
+                                        "{{transaction_kasbon_id}}"
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Inventory",
+                    "item": [
+                        {
+                            "name": "Restock Product",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"quantity\": 50,\n    \"cost_per_unit\": 2700,\n    \"notes\": \"Restock mingguan dari Supplier A\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/inventory/restock",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "inventory",
+                                        "restock"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Adjust Stock",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"quantity\": -2,\n    \"reason\": \"Barang rusak (hujan)\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/inventory/adjust",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "inventory",
+                                        "adjust"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Inventory Movements",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/inventory/{{product_id_1}}/movements",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "inventory",
+                                        "{{product_id_1}}",
+                                        "movements"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Stock Opname",
+                    "item": [
+                        {
+                            "name": "Start Opname Session",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"notes\": \"Opname Bulanan\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Opname Sessions",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Opname Session",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions/{{opname_session_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions",
+                                        "{{opname_session_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Record Count",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions/{{opname_session_id}}/items",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions",
+                                        "{{opname_session_id}}",
+                                        "items"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"system_qty\": 10,\n    \"physical_qty\": 9,\n    \"notes\": \"Selisih 1\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Finalize Opname",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions/{{opname_session_id}}/finalize",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions",
+                                        "{{opname_session_id}}",
+                                        "finalize"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"notes\": \"Selesai\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Variance Report",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions/{{opname_session_id}}/variance",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions",
+                                        "{{opname_session_id}}",
+                                        "variance"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Shopping List",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/shopping-list",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "shopping-list"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Near Expiry",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/near-expiry",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "near-expiry"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Cash Flow",
+                    "item": [
+                        {
+                            "name": "Open Drawer",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow/drawer/open",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow",
+                                        "drawer",
+                                        "open"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"opening_balance\": 100000,\n    \"notes\": \"Shift Pagi\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Close Drawer",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow/drawer/close",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow",
+                                        "drawer",
+                                        "close"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"session_id\": \"{{drawer_session_id}}\",\n    \"closing_balance\": 150000,\n    \"notes\": \"Tutup Shift\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Current Drawer",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow/drawer/current",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow",
+                                        "drawer",
+                                        "current"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Record Expense",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"type\": \"expense\",\n    \"amount\": 15000,\n    \"description\": \"Beli Air Galon\",\n    \"category_id\": \"{{category_id}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Cash Flow",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "POS",
+                    "item": [
+                        {
+                            "name": "Hold Cart",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/held-carts",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "held-carts"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"customer_id\": \"{{customer_id}}\",\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 1\n        }\n    ],\n    \"notes\": \"Customer ambil dompet\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Held Carts",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/held-carts",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "held-carts"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Resume Cart",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/held-carts/{{held_cart_id}}/resume",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "held-carts",
+                                        "{{held_cart_id}}",
+                                        "resume"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Discard Cart",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/held-carts/{{held_cart_id}}/discard",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "held-carts",
+                                        "{{held_cart_id}}",
+                                        "discard"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Refund",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/refunds",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "refunds"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"refund_method\": \"cash\",\n    \"reason\": \"Defective\",\n    \"requested_by\": \"cashier\",\n    \"items\": [\n        {\n            \"transaction_item_id\": \"{{tx_item_id}}\",\n            \"quantity\": 1,\n            \"restock\": true\n        }\n    ]\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Reports",
+                    "item": [
+                        {
+                            "name": "Daily Report",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/reports/daily",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "reports",
+                                        "daily"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Kasbon Report",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/reports/kasbon",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "reports",
+                                        "kasbon"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Inventory Report",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/reports/inventory",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "reports",
+                                        "inventory"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Dashboard Stats",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/reports/dashboard",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "reports",
+                                        "dashboard"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Consignment",
+                    "item": [
+                        {
+                            "name": "Create Consignor",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/consignors",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "consignors"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Ibu Budi\",\n    \"phone\": \"081111\",\n    \"notes\": \"Titip Kue Basah\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Consignors",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/consignors",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "consignors"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Refillables",
+                    "item": [
+                        {
+                            "name": "List Container Stock",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/refillables",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "refillables"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Adjust Container Stock",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/refillables/adjust",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "refillables",
+                                        "adjust"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"container_id\": \"{{container_id}}\",\n    \"empty_change\": 1,\n    \"full_change\": -1,\n    \"type\": \"adjustment\",\n    \"notes\": \"Manual Fix\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Payments",
+                    "item": [
+                        {
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "var jsonData = pm.response.json();",
+                                            "if (jsonData.data && jsonData.data.redirect_url) {",
+                                            "    console.log(\"Payment URL: \" + jsonData.data.redirect_url);",
+                                            "    pm.visualizer.set(`",
+                                            "        <h3>Payment URL</h3>",
+                                            "        <p>Click to open: <a href='${jsonData.data.redirect_url}' target='_blank'>${jsonData.data.redirect_url}</a></p>",
+                                            "        <p>Use this URL to view the QRIS Code.</p>",
+                                            "    `);",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "name": "Generate Snap Token",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/payments/snap",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "payments",
+                                        "snap"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"gross_amount\": 10000\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Mock Midtrans Webhook",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"transaction_time\": \"2024-01-01 12:00:00\",\n    \"transaction_status\": \"settlement\",\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"status_message\": \"midtrans payment notification\",\n    \"status_code\": \"200\",\n    \"signature_key\": \"mock-signature\",\n    \"payment_type\": \"qris\",\n    \"order_id\": \"{{transaction_id}}\",\n    \"merchant_id\": \"MOCK-MERCHANT\",\n    \"gross_amount\": \"10000.00\",\n    \"currency\": \"IDR\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/payments/notification",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "payments",
+                                        "notification"
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Manual Verify Payment",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/payments/{{transaction_qris_id}}/manual-verify",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "payments",
+                                        "{{transaction_qris_id}}",
+                                        "manual-verify"
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Health",
+                    "item": [
+                        {
+                            "name": "Check System Health",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});",
+                                            "",
+                                            "pm.test(\"System is healthy\", function () {",
+                                            "    var jsonData = pm.response.json();",
+                                            "    pm.expect(jsonData.status).to.eql(\"healthy\");",
+                                            "    pm.expect(jsonData.services.database).to.eql(\"up\");",
+                                            "});"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/health",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "health"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Readiness Check",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/ready",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "ready"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Liveness Check",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/live",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "live"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "2. Cashier Flow",
+            "item": [
+                {
+                    "name": "Auth",
+                    "item": [
+                        {
+                            "name": "Login",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "if (jsonData.data && jsonData.data.access_token) {",
+                                            "    pm.environment.set(\"access_token\", jsonData.data.access_token);",
+                                            "    pm.environment.set(\"refresh_token\", jsonData.data.refresh_token);",
+                                            "    console.log(\"Access Token updated\");",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"cashier@warung.com\",\n    \"password\": \"password\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/auth/login",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Sales",
+                    "item": [
+                        {
+                            "name": "Create Transaction",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"items\": [\n        {\"product_id\": \"{{product_id_1}}\", \"quantity\": 1}\n    ],\n    \"payment_method\": \"kasbon\",\n    \"customer_id\": \"{{customer_id}}\",\n    \"paid_amount\": 0,\n    \"notes\": \"Test Kasbon\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/transactions",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "transactions"
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 201\", function () {",
+                                            "    pm.response.to.have.status(201);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "if (jsonData.data && jsonData.data.id) {",
+                                            "    pm.environment.set(\"transaction_id\", jsonData.data.id);",
+                                            "    // Also set for Cancel/Refund tests if needed",
+                                            "    pm.environment.set(\"transaction_kasbon_id\", jsonData.data.id);",
+                                            "}",
+                                            "if (jsonData.data && jsonData.data.items && jsonData.data.items.length > 0) {",
+                                            "    pm.environment.set(\"tx_item_id\", jsonData.data.items[0].id);",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Create Transaction (Cash)",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"items\": [\n        {\"product_id\": \"{{product_id_1}}\", \"quantity\": 1}\n    ],\n    \"payment_method\": \"cash\",\n    \"customer_id\": \"{{customer_id}}\",\n    \"paid_amount\": 50000,\n    \"notes\": \"Test Cash Payment\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/transactions",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "transactions"
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 201\", function () {",
+                                            "    pm.response.to.have.status(201);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "if (jsonData.data && jsonData.data.id) {",
+                                            "    pm.environment.set(\"transaction_cash_id\", jsonData.data.id);",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Create Transaction (QRIS)",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"items\": [\n        {\"product_id\": \"{{product_id_1}}\", \"quantity\": 1}\n    ],\n    \"payment_method\": \"qris\",\n    \"customer_id\": \"{{customer_id}}\",\n    \"paid_amount\": 0,\n    \"notes\": \"Test QRIS Payment\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/transactions",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "transactions"
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 201\", function () {",
+                                            "    pm.response.to.have.status(201);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "if (jsonData.data && jsonData.data.id) {",
+                                            "    pm.environment.set(\"transaction_qris_id\", jsonData.data.id);",
+                                            "    // This ID will be used for Snap Token generation",
+                                            "    pm.environment.set(\"transaction_id\", jsonData.data.id);",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Cancel Transaction",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/transactions/{{transaction_kasbon_id}}/cancel",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "transactions",
+                                        "{{transaction_kasbon_id}}",
+                                        "cancel"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Customers",
+                    "item": [
+                        {
+                            "name": "Create Customer",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 201\", function () {",
+                                            "    pm.response.to.have.status(201);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "pm.environment.set(\"customer_id\", jsonData.data.id);"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"name\": \"Budi Santoso\",\n    \"phone\": \"08123456789\",\n    \"address\": \"Jl. Merdeka No. 45\",\n    \"credit_limit\": 500000,\n    \"notes\": \"Pelanggan setia\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Customers",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Customers with Debt",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers/with-debt",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers",
+                                        "with-debt"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Customer by ID",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers/{{customer_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers",
+                                        "{{customer_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Update Customer",
+                            "request": {
+                                "method": "PUT",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"credit_limit\": 750000,\n    \"notes\": \"Limit dinaikkan\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/customers/{{customer_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "customers",
+                                        "{{customer_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Kasbon History",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/kasbon/customers/{{customer_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "kasbon",
+                                        "customers",
+                                        "{{customer_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Kasbon Summary",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/kasbon/customers/{{customer_id}}/summary",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "kasbon",
+                                        "customers",
+                                        "{{customer_id}}",
+                                        "summary"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Record Kasbon Payment",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"amount\": 50000,\n    \"notes\": \"Bayar sebagian via transfer\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/kasbon/customers/{{customer_id}}/payments",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "kasbon",
+                                        "customers",
+                                        "{{customer_id}}",
+                                        "payments"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Download Billing PDF",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/kasbon/customers/{{customer_id}}/billing/pdf",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "kasbon",
+                                        "customers",
+                                        "{{customer_id}}",
+                                        "billing",
+                                        "pdf"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "POS",
+                    "item": [
+                        {
+                            "name": "Hold Cart",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/held-carts",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "held-carts"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"customer_id\": \"{{customer_id}}\",\n    \"items\": [\n        {\n            \"product_id\": \"{{product_id_1}}\",\n            \"quantity\": 1\n        }\n    ],\n    \"notes\": \"Customer ambil dompet\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Held Carts",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/held-carts",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "held-carts"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Resume Cart",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/held-carts/{{held_cart_id}}/resume",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "held-carts",
+                                        "{{held_cart_id}}",
+                                        "resume"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Discard Cart",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/held-carts/{{held_cart_id}}/discard",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "held-carts",
+                                        "{{held_cart_id}}",
+                                        "discard"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Refund",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/pos/refunds",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "pos",
+                                        "refunds"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"refund_method\": \"cash\",\n    \"reason\": \"Defective\",\n    \"requested_by\": \"cashier\",\n    \"items\": [\n        {\n            \"transaction_item_id\": \"{{tx_item_id}}\",\n            \"quantity\": 1,\n            \"restock\": true\n        }\n    ]\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Cash Flow",
+                    "item": [
+                        {
+                            "name": "Open Drawer",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow/drawer/open",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow",
+                                        "drawer",
+                                        "open"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"opening_balance\": 100000,\n    \"notes\": \"Shift Pagi\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Close Drawer",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow/drawer/close",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow",
+                                        "drawer",
+                                        "close"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"session_id\": \"{{drawer_session_id}}\",\n    \"closing_balance\": 150000,\n    \"notes\": \"Tutup Shift\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Current Drawer",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow/drawer/current",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow",
+                                        "drawer",
+                                        "current"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Record Expense",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"type\": \"expense\",\n    \"amount\": 15000,\n    \"description\": \"Beli Air Galon\",\n    \"category_id\": \"{{category_id}}\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Cash Flow",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/cashflow",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "cashflow"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Payments",
+                    "item": [
+                        {
+                            "name": "Generate Snap Token",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/payments/snap",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "payments",
+                                        "snap"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"transaction_id\": \"{{transaction_id}}\",\n    \"gross_amount\": 10000\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Payment by Transaction",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/payments/transaction/{{transaction_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "payments",
+                                        "transaction",
+                                        "{{transaction_id}}"
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Products",
+                    "item": [
+                        {
+                            "name": "Get Product List",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products?page=1&per_page=10",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "page",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "per_page",
+                                            "value": "10"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Search by Barcode",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products/search?barcode={{product_barcode_1}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products",
+                                        "search"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "barcode",
+                                            "value": "{{product_barcode_1}}"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "3. Inventory Flow",
+            "item": [
+                {
+                    "name": "Auth",
+                    "item": [
+                        {
+                            "name": "Login",
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});",
+                                            "",
+                                            "var jsonData = pm.response.json();",
+                                            "if (jsonData.data && jsonData.data.access_token) {",
+                                            "    pm.environment.set(\"access_token\", jsonData.data.access_token);",
+                                            "    pm.environment.set(\"refresh_token\", jsonData.data.refresh_token);",
+                                            "    console.log(\"Access Token updated\");",
+                                            "}"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ],
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"email\": \"inventory@warung.com\",\n    \"password\": \"password\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/auth/login",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "auth",
+                                        "login"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Inventory",
+                    "item": [
+                        {
+                            "name": "Restock Product",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"quantity\": 50,\n    \"cost_per_unit\": 2700,\n    \"notes\": \"Restock mingguan dari Supplier A\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/inventory/restock",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "inventory",
+                                        "restock"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Inventory Movements",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/inventory/{{product_id_1}}/movements",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "inventory",
+                                        "{{product_id_1}}",
+                                        "movements"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Container Stock",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/refillables",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "refillables"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Adjust Container Stock",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/refillables/adjust",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "refillables",
+                                        "adjust"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"container_id\": \"{{container_id}}\",\n    \"empty_change\": 1,\n    \"full_change\": -1,\n    \"type\": \"adjustment\",\n    \"notes\": \"Manual Fix\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Low Stock",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/inventory/low-stock",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "inventory",
+                                        "low-stock"
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Get Inventory Report",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/inventory/report",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "inventory",
+                                        "report"
+                                    ]
+                                }
+                            },
+                            "event": [
+                                {
+                                    "listen": "test",
+                                    "script": {
+                                        "exec": [
+                                            "pm.test(\"Status code is 200\", function () {",
+                                            "    pm.response.to.have.status(200);",
+                                            "});"
+                                        ],
+                                        "type": "text/javascript"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Stock Opname",
+                    "item": [
+                        {
+                            "name": "Start Opname Session",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"notes\": \"Opname Bulanan\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "List Opname Sessions",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Opname Session",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions/{{opname_session_id}}",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions",
+                                        "{{opname_session_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Record Count",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions/{{opname_session_id}}/items",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions",
+                                        "{{opname_session_id}}",
+                                        "items"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"product_id\": \"{{product_id_1}}\",\n    \"system_qty\": 10,\n    \"physical_qty\": 9,\n    \"notes\": \"Selisih 1\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Finalize Opname",
+                            "request": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions/{{opname_session_id}}/finalize",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions",
+                                        "{{opname_session_id}}",
+                                        "finalize"
+                                    ]
+                                },
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n    \"notes\": \"Selesai\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "language": "json"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Variance Report",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/sessions/{{opname_session_id}}/variance",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "sessions",
+                                        "{{opname_session_id}}",
+                                        "variance"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Shopping List",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/shopping-list",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "shopping-list"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Near Expiry",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/stock-opname/near-expiry",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "stock-opname",
+                                        "near-expiry"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Products",
+                    "item": [
+                        {
+                            "name": "Get Product List",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products?page=1&per_page=10",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "page",
+                                            "value": "1"
+                                        },
+                                        {
+                                            "key": "per_page",
+                                            "value": "10"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Get Low Stock Products",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/api/v1/products/low-stock",
+                                    "host": [
+                                        "{{base_url}}"
+                                    ],
+                                    "path": [
+                                        "api",
+                                        "v1",
+                                        "products",
+                                        "low-stock"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{access_token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "event": null,
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8080",
+            "type": "string"
+        },
+        {
+            "key": "access_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "refresh_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "product_id_1",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "product_barcode_1",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "product_id_2",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "customer_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "transaction_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "transaction_kasbon_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "tier_id",
+            "value": "",
+            "type": "string"
+        }
+    ]
 }

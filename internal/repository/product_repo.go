@@ -87,7 +87,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
-		WHERE id = $1
+		WHERE id = $1 AND is_active = true
 	`
 
 	var product domain.Product
@@ -372,7 +372,7 @@ func (r *ProductRepository) UpdateImageURL(ctx context.Context, id uuid.UUID, im
 
 // Delete soft deletes a product
 func (r *ProductRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `UPDATE products SET is_active = false, updated_at = NOW() WHERE id = $1`
+	query := `UPDATE products SET is_active = false, updated_at = NOW() WHERE id = $1 AND is_active = true`
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete product: %w", err)
@@ -479,19 +479,76 @@ func (r *ProductRepository) GetPricingTiers(ctx context.Context, productID uuid.
 	return tiers, rows.Err()
 }
 
+// GetPricingTier retrieves a single pricing tier by ID
+func (r *ProductRepository) GetPricingTier(ctx context.Context, id uuid.UUID) (*domain.PricingTier, error) {
+	query := `
+		SELECT id, product_id, name, min_quantity, max_quantity, price, is_active, created_at, updated_at
+		FROM pricing_tiers
+		WHERE id = $1
+	`
+	var t domain.PricingTier
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&t.ID, &t.ProductID, &t.Name, &t.MinQuantity,
+		&t.MaxQuantity, &t.Price, &t.IsActive, &t.CreatedAt, &t.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pricing tier: %w", err)
+	}
+	return &t, nil
+}
+
 // UpdatePricingTier updates a pricing tier
 func (r *ProductRepository) UpdatePricingTier(ctx context.Context, tierID uuid.UUID, input domain.PricingTierInput) (*domain.PricingTier, error) {
-	query := `
+	// Build dynamic query
+	var setClauses []string
+	var args []interface{}
+	argIndex := 1
+
+	if input.Name != nil {
+		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIndex))
+		args = append(args, input.Name)
+		argIndex++
+	}
+	if input.MinQuantity > 0 { // Assuming 0 implies no change? Or explicit 0? Input struct value type makes partial ambiguous. 
+		// Actually PricingTierInput has MinQuantity int (value). So it's always 0 if not sent.
+		// If user wants to update ONLY price, MinQuantity will be 0.
+		// We should probably allow MinQuantity=0 if we assume full replacement OR partial?
+		// Given we changed to partial, we should assume value types (int) are updated ONLY if non-zero?
+		// But 0 might be valid (though unlikely for MinQuantity).
+		// Let's assume > 0 for now. Or better: fetch existing first.
+		setClauses = append(setClauses, fmt.Sprintf("min_quantity = $%d", argIndex))
+		args = append(args, input.MinQuantity)
+		argIndex++
+	}
+	if input.MaxQuantity != nil {
+		setClauses = append(setClauses, fmt.Sprintf("max_quantity = $%d", argIndex))
+		args = append(args, input.MaxQuantity)
+		argIndex++
+	}
+	if input.Price > 0 {
+		setClauses = append(setClauses, fmt.Sprintf("price = $%d", argIndex))
+		args = append(args, input.Price)
+		argIndex++
+	}
+
+	if len(setClauses) == 0 {
+		// Just return existing
+		return r.GetPricingTier(ctx, tierID) // Need to implement GetPricingTier or just query
+	}
+
+	args = append(args, tierID)
+	query := fmt.Sprintf(`
 		UPDATE pricing_tiers 
-		SET name = $1, min_quantity = $2, max_quantity = $3, price = $4, updated_at = NOW()
-		WHERE id = $5
+		SET %s, updated_at = NOW()
+		WHERE id = $%d
 		RETURNING id, product_id, name, min_quantity, max_quantity, price, is_active, created_at, updated_at
-	`
+	`, strings.Join(setClauses, ", "), argIndex)
 
 	var tier domain.PricingTier
-	err := r.db.QueryRowContext(ctx, query,
-		input.Name, input.MinQuantity, input.MaxQuantity, input.Price, tierID,
-	).Scan(
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(
 		&tier.ID, &tier.ProductID, &tier.Name, &tier.MinQuantity,
 		&tier.MaxQuantity, &tier.Price, &tier.IsActive, &tier.CreatedAt, &tier.UpdatedAt,
 	)

@@ -14,6 +14,7 @@ type Config struct {
 	Minio    MinioConfig
 	JWT      JWTConfig
 	App      AppConfig
+	Midtrans MidtransConfig
 }
 
 // ServerConfig holds HTTP server configuration
@@ -71,6 +72,14 @@ type AppConfig struct {
 	APIVersion  string
 }
 
+// MidtransConfig holds Midtrans payment gateway configuration
+type MidtransConfig struct {
+	ServerKey   string
+	ClientKey   string
+	Environment string // "sandbox" or "production"
+	MerchantID  string
+}
+
 // Load loads configuration from environment variables
 func Load() *Config {
 	return &Config{
@@ -116,6 +125,12 @@ func Load() *Config {
 			Environment: getEnv("APP_ENV", "development"),
 			LogLevel:    getEnv("LOG_LEVEL", "info"),
 			APIVersion:  getEnv("API_VERSION", "v1"),
+		},
+		Midtrans: MidtransConfig{
+			ServerKey:   getEnv("MIDTRANS_SERVER_KEY", ""),
+			ClientKey:   getEnv("MIDTRANS_CLIENT_KEY", ""),
+			Environment: getEnv("MIDTRANS_ENV", "sandbox"),
+			MerchantID:  getEnv("MIDTRANS_MERCHANT_ID", ""),
 		},
 	}
 }
