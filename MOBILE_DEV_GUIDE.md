@@ -8,6 +8,21 @@ API Version: /api/v1
 Auth: Bearer Token (JWT)
 ```
 
+### 📊 Performance (Hasil Load Test)
+| Metric | Value |
+|--------|-------|
+| Throughput | **~200 requests/second** |
+| Response Time p95 | **<12ms** |
+| Max Concurrent Users | **200+ kasir** |
+| Rate Limit | **1000 requests/minute** |
+
+### 🔐 Test Credentials (Development)
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@warung.com` | `password` |
+| Cashier | `cashier@warung.com` | `password` |
+| Inventory | `inventory@warung.com` | `password` |
+
 ---
 
 ## 1. Autentikasi (Authentication Flow)
@@ -283,6 +298,50 @@ POST /api/v1/pos/held-carts/{id}/resume
 }
 ```
 
+### HTTP Status Codes
+| Code | Meaning | Action di Mobile |
+|------|---------|------------------|
+| `200` | Success | Tampilkan data |
+| `201` | Created | Transaksi berhasil |
+| `400` | Bad Request | Validasi error, tampilkan pesan |
+| `401` | Unauthorized | Redirect ke login |
+| `403` | Forbidden | Role tidak punya akses |
+| `404` | Not Found | Item tidak ditemukan |
+| `429` | Rate Limited | Retry setelah 1 detik |
+| `500` | Server Error | Tampilkan "Coba lagi" |
+
+### Error Handling (Mobile Best Practice)
+```javascript
+// Contoh error handling
+async function apiCall(endpoint) {
+  try {
+    const response = await fetch(API_URL + endpoint, { headers });
+    
+    if (response.status === 401) {
+      // Token expired, refresh atau logout
+      await refreshToken();
+      return apiCall(endpoint); // Retry
+    }
+    
+    if (response.status === 429) {
+      // Rate limited, tunggu lalu retry
+      await sleep(1000);
+      return apiCall(endpoint);
+    }
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error?.message || 'Terjadi kesalahan');
+    }
+    
+    return response.json();
+  } catch (e) {
+    // Network error - tampilkan offline mode
+    showOfflineMessage();
+  }
+}
+```
+
 ### Pagination
 ```json
 {
@@ -298,7 +357,32 @@ POST /api/v1/pos/held-carts/{id}/resume
 
 ---
 
-## 8. Prioritas Implementasi Mobile
+## 8. Kategori Produk
+
+### 8.1 List Semua Kategori
+```http
+GET /api/v1/categories
+```
+
+**Response:**
+```json
+{
+  "data": [
+    { "id": "uuid", "name": "Makanan", "description": "Makanan ringan" },
+    { "id": "uuid", "name": "Minuman", "description": "Minuman dingin/panas" },
+    { "id": "uuid", "name": "Rokok", "description": "Rokok dan vape" }
+  ]
+}
+```
+
+### 8.2 Filter Produk by Kategori
+```http
+GET /api/v1/products?category_id={category_uuid}&page=1&per_page=20
+```
+
+---
+
+## 9. Prioritas Implementasi Mobile
 
 ### Phase 1: MVP (2-3 minggu)
 1. ✅ Login/Logout
@@ -323,7 +407,7 @@ POST /api/v1/pos/held-carts/{id}/resume
 
 ---
 
-## 9. Tips UI/UX untuk Warung
+## 10. Tips UI/UX untuk Warung
 
 | Screen | Tips |
 |--------|------|
@@ -335,11 +419,50 @@ POST /api/v1/pos/held-carts/{id}/resume
 
 ---
 
-## 10. Testing Endpoints
+## 11. Offline Support (Recommended)
 
-Gunakan Postman Collection yang sudah ada:
+### Data yang Harus Di-cache Lokal:
+| Data | Alasan |
+|------|--------|
+| Produk (list + harga) | Bisa scan & hitung offline |
+| Kategori | Filter produk offline |
+| Pelanggan | Pilih pelanggan kasbon offline |
+| Pending transactions | Queue transaksi saat offline |
+
+### Sync Strategy:
+```
+1. Pull produk & pelanggan saat app dibuka
+2. Simpan transaksi di SQLite/Room saat offline
+3. Sync pending transactions saat online
+4. Background sync setiap 5 menit
+```
+
+### Conflict Resolution:
+- Server always wins untuk data master (produk, harga)
+- Queue transactions di local, kirim saat online
+- Show "pending sync" indicator di UI
+
+---
+
+## 12. Testing Endpoints
+
+### Postman Collection
 ```
 /warung-backend.postman_collection.json
 ```
-
 Import ke Postman/Insomnia untuk testing semua endpoint.
+
+### API Integration Test
+```bash
+# Run all API tests
+python tests/integration/run_api_tests.py
+
+# Run load test (5 min)
+make test-prod-quick
+```
+
+### Health Check
+```http
+GET /health
+```
+Gunakan untuk check koneksi di mobile app.
