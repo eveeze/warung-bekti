@@ -248,9 +248,19 @@ func (r *ProductRepository) List(ctx context.Context, filter domain.ProductFilte
 		products = append(products, p)
 	}
 
-	// Load pricing tiers for all products
-	for i := range products {
-		products[i].PricingTiers, _ = r.GetPricingTiers(ctx, products[i].ID)
+	// Load pricing tiers for all products in batch (fixes N+1 query)
+	if len(products) > 0 {
+		productIDs := make([]uuid.UUID, len(products))
+		for i, p := range products {
+			productIDs[i] = p.ID
+		}
+
+		tiersMap, err := r.GetPricingTiersBatch(ctx, productIDs)
+		if err == nil {
+			for i := range products {
+				products[i].PricingTiers = tiersMap[products[i].ID]
+			}
+		}
 	}
 
 	return products, total, rows.Err()
@@ -482,6 +492,49 @@ func (r *ProductRepository) GetPricingTiers(ctx context.Context, productID uuid.
 	}
 
 	return tiers, rows.Err()
+}
+
+// GetPricingTiersBatch retrieves pricing tiers for multiple products in a single query
+// This fixes N+1 query issue when listing products
+func (r *ProductRepository) GetPricingTiersBatch(ctx context.Context, productIDs []uuid.UUID) (map[uuid.UUID][]domain.PricingTier, error) {
+	if len(productIDs) == 0 {
+		return make(map[uuid.UUID][]domain.PricingTier), nil
+	}
+
+	// Build placeholders for IN clause
+	placeholders := make([]string, len(productIDs))
+	args := make([]interface{}, len(productIDs))
+	for i, id := range productIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+		SELECT id, product_id, name, min_quantity, max_quantity, price, is_active, created_at, updated_at
+		FROM pricing_tiers
+		WHERE product_id IN (%s) AND is_active = true
+		ORDER BY product_id, min_quantity ASC
+	`, strings.Join(placeholders, ","))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pricing tiers batch: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[uuid.UUID][]domain.PricingTier)
+	for rows.Next() {
+		var t domain.PricingTier
+		if err := rows.Scan(
+			&t.ID, &t.ProductID, &t.Name, &t.MinQuantity,
+			&t.MaxQuantity, &t.Price, &t.IsActive, &t.CreatedAt, &t.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan pricing tier: %w", err)
+		}
+		result[t.ProductID] = append(result[t.ProductID], t)
+	}
+
+	return result, rows.Err()
 }
 
 // GetPricingTier retrieves a single pricing tier by ID
