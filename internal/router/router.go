@@ -197,7 +197,7 @@ func New(
 	handler = middleware.Logging(handler)
 	handler = middleware.Audit(auditRepo)(handler)
 	handler = middleware.CORS(handler)
-	handler = middleware.RateLimit(100, time.Minute)(handler)
+	handler = middleware.RateLimit(1000, time.Minute)(handler)
 	handler = middleware.Recovery(handler)
 
 	return handler
