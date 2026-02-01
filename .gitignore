@@ -46,3 +46,7 @@ tmp/
 # Debug
 debug
 __debug_bin
+
+# Data Seeding
+ipos_data.xlsx
+*.xls
