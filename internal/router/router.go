@@ -43,6 +43,7 @@ func New(
 		db, transactionRepo, productRepo, customerRepo, kasbonRepo, inventoryRepo,
 	)
 	authSvc := service.NewAuthService(userRepo, cfg)
+	userSvc := service.NewUserService(userRepo) // New Service initialized
 	paymentSvc := service.NewPaymentService(db, paymentRepo, transactionRepo, &cfg.Midtrans)
 	stockOpnameSvc := service.NewStockOpnameService(db, stockOpnameRepo, productRepo, inventoryRepo)
 	cashFlowSvc := service.NewCashFlowService(db, cashFlowRepo)
@@ -63,6 +64,7 @@ func New(
 	inventoryHandler := handler.NewInventoryHandler(inventoryRepo, productRepo)
 	reportHandler := handler.NewReportHandler(transactionRepo, kasbonRepo, inventoryRepo, productRepo)
 	authHandler := handler.NewAuthHandler(authSvc)
+	userHandler := handler.NewUserHandler(userSvc) // New Handler initialized
 	paymentHandler := handler.NewPaymentHandler(paymentSvc)
 	stockOpnameHandler := handler.NewStockOpnameHandler(stockOpnameSvc)
 	cashFlowHandler := handler.NewCashFlowHandler(cashFlowSvc)
@@ -87,37 +89,50 @@ func New(
 	// Middleware for protected routes
 	authMiddleware := middleware.Auth(&cfg.JWT)
 
-	// Protected Routes Helper
-	// We wrap handlers with authMiddleware
+	// Helpers for Middleware wrapping
 	protected := func(h http.HandlerFunc) http.HandlerFunc {
 		return authMiddleware(http.HandlerFunc(h)).ServeHTTP
 	}
 
-	// Admin Only Helper
 	adminOnly := func(h http.HandlerFunc) http.HandlerFunc {
 		return authMiddleware(middleware.RequireAdmin()(http.HandlerFunc(h))).ServeHTTP
 	}
 
-	// Cashier Access Helper (Admin + Cashier)
 	cashierAccess := func(h http.HandlerFunc) http.HandlerFunc {
 		return authMiddleware(middleware.RequireRole("admin", "cashier")(http.HandlerFunc(h))).ServeHTTP
 	}
 
-	// Inventory Access Helper (Admin + Inventory)
 	inventoryAccess := func(h http.HandlerFunc) http.HandlerFunc {
 		return authMiddleware(middleware.RequireRole("admin", "inventory")(http.HandlerFunc(h))).ServeHTTP
 	}
-	// register akun
-	mux.HandleFunc("POST "+apiPrefix+"/admin/users", adminOnly(authHandler.Register))
+
+	// ========================================================================
+	// USERS MANAGEMENT (Admin Only)
+	// ========================================================================
+	// Frontend: client.get('/users')
+	mux.HandleFunc("GET "+apiPrefix+"/users", adminOnly(userHandler.List))
+	
+	// Frontend: client.post('/admin/users')
+	mux.HandleFunc("POST "+apiPrefix+"/admin/users", adminOnly(userHandler.Create))
+	
+	// Frontend: client.get('/users/:id'), client.put('/users/:id'), client.delete('/users/:id')
+	mux.HandleFunc("GET "+apiPrefix+"/users/{id}", adminOnly(userHandler.GetByID))
+	mux.HandleFunc("PUT "+apiPrefix+"/users/{id}", adminOnly(userHandler.Update))
+	mux.HandleFunc("DELETE "+apiPrefix+"/users/{id}", adminOnly(userHandler.Delete))
+
+	// ========================================================================
+	// OTHER MODULES
+	// ========================================================================
+
 	// Products
 	mux.HandleFunc("GET "+apiPrefix+"/products", protected(productHandler.List))
-	mux.HandleFunc("POST "+apiPrefix+"/products", adminOnly(productHandler.Create)) // Admin only creation
+	mux.HandleFunc("POST "+apiPrefix+"/products", adminOnly(productHandler.Create))
 	mux.HandleFunc("GET "+apiPrefix+"/products/search", protected(productHandler.GetByBarcode))
 	mux.HandleFunc("GET "+apiPrefix+"/products/low-stock", protected(productHandler.GetLowStock))
 	mux.HandleFunc("GET "+apiPrefix+"/products/{id}", protected(productHandler.GetByID))
-	mux.HandleFunc("PUT "+apiPrefix+"/products/{id}", adminOnly(productHandler.Update)) // Admin only for modification
-	mux.HandleFunc("DELETE "+apiPrefix+"/products/{id}", adminOnly(productHandler.Delete)) // Admin only
-	mux.HandleFunc("POST "+apiPrefix+"/products/{id}/pricing-tiers", adminOnly(productHandler.AddPricingTier)) // Admin only
+	mux.HandleFunc("PUT "+apiPrefix+"/products/{id}", adminOnly(productHandler.Update))
+	mux.HandleFunc("DELETE "+apiPrefix+"/products/{id}", adminOnly(productHandler.Delete))
+	mux.HandleFunc("POST "+apiPrefix+"/products/{id}/pricing-tiers", adminOnly(productHandler.AddPricingTier))
 	mux.HandleFunc("PUT "+apiPrefix+"/products/{id}/pricing-tiers/{tierId}", adminOnly(productHandler.UpdatePricingTier))
 	mux.HandleFunc("DELETE "+apiPrefix+"/products/{id}/pricing-tiers/{tierId}", adminOnly(productHandler.DeletePricingTier))
 
@@ -126,8 +141,8 @@ func New(
 	mux.HandleFunc("POST "+apiPrefix+"/customers", cashierAccess(customerHandler.Create))
 	mux.HandleFunc("GET "+apiPrefix+"/customers/with-debt", cashierAccess(customerHandler.GetWithDebt))
 	mux.HandleFunc("GET "+apiPrefix+"/customers/{id}", cashierAccess(customerHandler.GetByID))
-	mux.HandleFunc("PUT "+apiPrefix+"/customers/{id}", cashierAccess(customerHandler.Update)) // Cashier may update customer info
-	mux.HandleFunc("DELETE "+apiPrefix+"/customers/{id}", adminOnly(customerHandler.Delete)) // Admin only
+	mux.HandleFunc("PUT "+apiPrefix+"/customers/{id}", cashierAccess(customerHandler.Update))
+	mux.HandleFunc("DELETE "+apiPrefix+"/customers/{id}", adminOnly(customerHandler.Delete))
 	mux.HandleFunc("GET "+apiPrefix+"/kasbon/customers/{id}", cashierAccess(kasbonHandler.GetHistory))
 	mux.HandleFunc("GET "+apiPrefix+"/kasbon/customers/{id}/summary", cashierAccess(kasbonHandler.GetSummary))
 	mux.HandleFunc("GET "+apiPrefix+"/kasbon/customers/{id}/billing/pdf", cashierAccess(kasbonHandler.DownloadBillingPDF))
@@ -141,21 +156,21 @@ func New(
 	mux.HandleFunc("POST "+apiPrefix+"/transactions/{id}/cancel", cashierAccess(transactionHandler.Cancel))
 
 	// Inventory
-	mux.HandleFunc("POST "+apiPrefix+"/inventory/restock", inventoryAccess(inventoryHandler.Restock)) // Inventory role allowed
-	mux.HandleFunc("POST "+apiPrefix+"/inventory/adjust", adminOnly(inventoryHandler.Adjust)) // Admin only manual adjustment
+	mux.HandleFunc("POST "+apiPrefix+"/inventory/restock", inventoryAccess(inventoryHandler.Restock))
+	mux.HandleFunc("POST "+apiPrefix+"/inventory/adjust", adminOnly(inventoryHandler.Adjust))
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/low-stock", inventoryAccess(inventoryHandler.GetLowStock))
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/report", inventoryAccess(inventoryHandler.GetReport))
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/restock-list/pdf", inventoryAccess(inventoryHandler.DownloadRestockPDF))
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/{productId}/movements", inventoryAccess(inventoryHandler.GetMovements))
 
-	// Categories (Product Categories)
+	// Categories
 	mux.HandleFunc("GET "+apiPrefix+"/categories", protected(categoryHandler.List))
 	mux.HandleFunc("GET "+apiPrefix+"/categories/{id}", protected(categoryHandler.GetByID))
 	mux.HandleFunc("POST "+apiPrefix+"/categories", adminOnly(categoryHandler.Create))
 	mux.HandleFunc("PUT "+apiPrefix+"/categories/{id}", adminOnly(categoryHandler.Update))
 	mux.HandleFunc("DELETE "+apiPrefix+"/categories/{id}", adminOnly(categoryHandler.Delete))
 
-	// Reports - Admin Only
+	// Reports
 	mux.HandleFunc("GET "+apiPrefix+"/reports/daily", adminOnly(reportHandler.GetDailyReport))
 	mux.HandleFunc("GET "+apiPrefix+"/reports/kasbon", adminOnly(reportHandler.GetKasbonReport))
 	mux.HandleFunc("GET "+apiPrefix+"/reports/inventory", adminOnly(reportHandler.GetInventoryReport))
@@ -163,7 +178,7 @@ func New(
 
 	// Payments
 	mux.HandleFunc("POST "+apiPrefix+"/payments/snap", cashierAccess(paymentHandler.GenerateSnapToken))
-	mux.HandleFunc("POST "+apiPrefix+"/payments/notification", paymentHandler.HandleNotification) // Public webhook
+	mux.HandleFunc("POST "+apiPrefix+"/payments/notification", paymentHandler.HandleNotification)
 	mux.HandleFunc("POST "+apiPrefix+"/payments/{id}/manual-verify", adminOnly(paymentHandler.ManualVerify))
 	mux.HandleFunc("GET "+apiPrefix+"/payments/transaction/{id}", cashierAccess(paymentHandler.GetPaymentByTransaction))
 
@@ -199,17 +214,17 @@ func New(
 	mux.HandleFunc("GET "+apiPrefix+"/consignors", adminOnly(consignmentHandler.ListConsignors))
 	mux.HandleFunc("PUT "+apiPrefix+"/consignors/{id}", adminOnly(consignmentHandler.UpdateConsignor))
 
-	// Refillables (Gas & Galon)
+	// Refillables
 	mux.HandleFunc("GET "+apiPrefix+"/refillables", inventoryAccess(refillableHandler.GetContainers))
 	mux.HandleFunc("POST "+apiPrefix+"/refillables/adjust", inventoryAccess(refillableHandler.AdjustStock))
 
-	// Apply middleware chain
-	var handler http.Handler = mux
-	handler = middleware.Logging(handler)
-	handler = middleware.Audit(auditRepo)(handler)
-	handler = middleware.CORS(handler)
-	handler = middleware.RateLimit(1000, time.Minute)(handler)
-	handler = middleware.Recovery(handler)
+	// Apply global middleware chain
+	var h http.Handler = mux
+	h = middleware.Logging(h)
+	h = middleware.Audit(auditRepo)(h)
+	h = middleware.CORS(h)
+	h = middleware.RateLimit(1000, time.Minute)(h)
+	h = middleware.Recovery(h)
 
-	return handler
+	return h
 }
