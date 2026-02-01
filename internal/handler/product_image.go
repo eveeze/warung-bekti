@@ -16,7 +16,7 @@ import (
 )
 
 // processImage resizes and compresses an image
-func (h *ProductHandler) processImage(file multipart.File, header *multipart.FileHeader) (io.Reader, int64, string, string, error) {
+func (h *ProductHandler) processImage(file multipart.File, _ *multipart.FileHeader) (io.Reader, int64, string, string, error) {
 	// 1. Decode image (supports peg, png, gif via standard library imports)
 	img, _, err := image.Decode(file)
 	if err != nil {

@@ -112,8 +112,8 @@ func New(
 	// Frontend: client.get('/users')
 	mux.HandleFunc("GET "+apiPrefix+"/users", adminOnly(userHandler.List))
 	
-	// Frontend: client.post('/admin/users')
-	mux.HandleFunc("POST "+apiPrefix+"/admin/users", adminOnly(userHandler.Create))
+	// Frontend: client.post('/users')
+	mux.HandleFunc("POST "+apiPrefix+"/users", adminOnly(userHandler.Create))
 	
 	// Frontend: client.get('/users/:id'), client.put('/users/:id'), client.delete('/users/:id')
 	mux.HandleFunc("GET "+apiPrefix+"/users/{id}", adminOnly(userHandler.GetByID))
