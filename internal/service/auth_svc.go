@@ -25,20 +25,23 @@ func NewAuthService(userRepo domain.UserRepository, cfg *config.Config) *AuthSer
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, req domain.RegisterRequest) (*domain.AuthResponse, error) {
-	// Check if email already exists
+func (s *AuthService) Register(ctx context.Context, req domain.RegisterRequest) (*domain.User, error) {
+	// 1. Larang pembuatan role admin secara programmatik
+	if req.Role == domain.RoleAdmin {
+		return nil, errors.New("cannot create another admin user")
+	}
+
+	// 2. Cek apakah email sudah terdaftar
 	existingUser, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err == nil && existingUser != nil {
 		return nil, errors.New("email already registered")
 	}
 
-	// Hash password
 	hashedPassword, err := password.Hash(req.Password)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create user
 	user := &domain.User{
 		Name:         req.Name,
 		Email:        req.Email,
@@ -51,17 +54,7 @@ func (s *AuthService) Register(ctx context.Context, req domain.RegisterRequest) 
 		return nil, err
 	}
 
-	// Generate tokens
-	accessToken, refreshToken, err := s.generateTokens(user)
-	if err != nil {
-		return nil, err
-	}
-
-	return &domain.AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		User:         *user,
-	}, nil
+	return user, nil
 }
 
 func (s *AuthService) Login(ctx context.Context, req domain.LoginRequest) (*domain.AuthResponse, error) {

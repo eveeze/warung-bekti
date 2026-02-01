@@ -25,6 +25,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validasi input
 	v := validator.New()
 	v.Required("name", req.Name, "name is required")
 	v.Required("email", req.Email, "email is required")
@@ -32,20 +33,22 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	v.Required("password", req.Password, "password is required")
 	v.MinLength("password", req.Password, 6, "password must be at least 6 characters")
 	v.Required("role", string(req.Role), "role is required")
-	v.InSlice("role", string(req.Role), []string{"cashier", "inventory"}, "invalid role: admin registration is restricted")
+	// Pastikan hanya role yang diizinkan sesuai MOBILE_DEV_GUIDE.md
+	v.InSlice("role", string(req.Role), []string{"cashier", "inventory"}, "invalid role: only cashier or inventory allowed")
 
 	if v.HasErrors() {
 		response.ValidationError(w, v.Errors())
 		return
 	}
 
-	resp, err := h.authSvc.Register(r.Context(), req)
+	user, err := h.authSvc.Register(r.Context(), req)
 	if err != nil {
 		response.BadRequest(w, err.Error())
 		return
 	}
 
-	response.Created(w, "User registered successfully", resp)
+	// Kembalikan data user tanpa token, karena ini aksi administratif
+	response.Created(w, "User created successfully by Admin", user)
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {

@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/eveeze/warung-backend/internal/config"
 	"github.com/eveeze/warung-backend/internal/database"
@@ -15,6 +17,79 @@ import (
 )
 
 func main() {
+	// Simple CLI parsing
+	if len(os.Args) < 2 {
+		// Default to running the server
+		runServer()
+		return
+	}
+
+	command := os.Args[1]
+
+	switch command {
+	case "server":
+		runServer()
+	case "migrate":
+		handleMigrate(os.Args[2:])
+	default:
+		fmt.Printf("Unknown command: %s\n", command)
+		fmt.Println("Usage: warung-api [server|migrate]")
+		os.Exit(1)
+	}
+}
+
+func handleMigrate(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: migrate [up|down|status]")
+		os.Exit(1)
+	}
+
+	cfg := config.Load()
+	
+	// Setup logger for migration output
+	log := logger.New(os.Stdout, logger.LevelInfo)
+	logger.SetDefault(log)
+
+	db, err := database.NewPostgres(&cfg.Database)
+	if err != nil {
+		logger.Fatal("Failed to connect to PostgreSQL: %v", err)
+	}
+	defer db.Close()
+
+	migrator := database.NewMigrator(db)
+	ctx := context.Background()
+
+	subCmd := args[0]
+	switch subCmd {
+	case "up":
+		if err := migrator.Up(ctx); err != nil {
+			logger.Fatal("Migration up failed: %v", err)
+		}
+		logger.Info("Migrations up completed successfully")
+	case "down":
+		if err := migrator.Down(ctx); err != nil {
+			logger.Fatal("Migration down failed: %v", err)
+		}
+		logger.Info("Migration down completed successfully")
+	case "status":
+		migrations, err := migrator.Status(ctx)
+		if err != nil {
+			logger.Fatal("Failed to get migration status: %v", err)
+		}
+		for _, m := range migrations {
+			status := "Pending"
+			if m.Applied {
+				status = fmt.Sprintf("Applied at %s", m.AppliedAt.Format(time.RFC3339))
+			}
+			fmt.Printf("[%s] %s - %s\n", m.Version, m.Name, status)
+		}
+	default:
+		fmt.Printf("Unknown migration command: %s\n", subCmd)
+		os.Exit(1)
+	}
+}
+
+func runServer() {
 	// Load configuration
 	cfg := config.Load()
 
@@ -32,11 +107,20 @@ func main() {
 	}
 	defer db.Close()
 
-	// Run migrations
-	migrator := database.NewMigrator(db)
-	if err := migrator.Up(context.Background()); err != nil {
-		logger.Fatal("Failed to run migrations: %v", err)
-	}
+	// Run migrations ON STARTUP only if configured or default behavior?
+	// For production stability, usually we want explicit migration.
+	// But to keep existing behavior for "server" command (except the conflict), we can skip it here 
+	// or make it optional. 
+	// The problem was `runServer` causes port bind. `migrate` command shouldn't run `runServer`.
+	// So `runServer` CAN run migrations if we want auto-migrate on start.
+	// But `make migrate-up` calls `go run main.go migrate up`, which now won't call `runServer`.
+	// So we are safe.
+	
+	// Optional: Auto-migrate on startup (can be disabled)
+	// migrator := database.NewMigrator(db)
+	// if err := migrator.Up(context.Background()); err != nil {
+	// 	logger.Fatal("Failed to run migrations: %v", err)
+	// }
 
 	// Connect to Redis
 	redis, err := database.NewRedis(&cfg.Redis)

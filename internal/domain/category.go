@@ -35,3 +35,9 @@ type CategoryUpdateInput struct {
 	ParentID    *uuid.UUID `json:"parent_id,omitempty"`
 	IsActive    *bool      `json:"is_active,omitempty"`
 }
+
+// CategoryResponse is the response for list categories (includes product count)
+type CategoryResponse struct {
+	Category
+	ProductCount int `json:"product_count"`
+}

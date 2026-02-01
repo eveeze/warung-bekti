@@ -36,6 +36,7 @@ func New(
 	auditRepo := repository.NewAuditRepository(db)
 	consignmentRepo := repository.NewConsignmentRepository(db)
 	refillableRepo := repository.NewRefillableRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
 
 	// Initialize services
 	transactionSvc := service.NewTransactionService(
@@ -48,6 +49,7 @@ func New(
 	posSvc := service.NewPOSService(db, posRepo, productRepo, transactionRepo, inventoryRepo)
 	consignmentSvc := service.NewConsignmentService(db, consignmentRepo, transactionRepo)
 	refillableSvc := service.NewRefillableService(db, refillableRepo)
+	categorySvc := service.NewCategoryService(categoryRepo)
 
 	// Initialize cache service
 	cacheSvc := service.NewCacheService(redis)
@@ -67,6 +69,7 @@ func New(
 	posHandler := handler.NewPOSHandler(posSvc)
 	consignmentHandler := handler.NewConsignmentHandler(consignmentSvc)
 	refillableHandler := handler.NewRefillableHandler(refillableSvc)
+	categoryHandler := handler.NewCategoryHandler(categorySvc)
 
 	// Health check routes (Public)
 	mux.HandleFunc("GET /health", healthHandler.Health)
@@ -104,7 +107,8 @@ func New(
 	inventoryAccess := func(h http.HandlerFunc) http.HandlerFunc {
 		return authMiddleware(middleware.RequireRole("admin", "inventory")(http.HandlerFunc(h))).ServeHTTP
 	}
-
+	// register akun
+	mux.HandleFunc("POST "+apiPrefix+"/admin/users", adminOnly(authHandler.Register))
 	// Products
 	mux.HandleFunc("GET "+apiPrefix+"/products", protected(productHandler.List))
 	mux.HandleFunc("POST "+apiPrefix+"/products", adminOnly(productHandler.Create)) // Admin only creation
@@ -143,6 +147,13 @@ func New(
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/report", inventoryAccess(inventoryHandler.GetReport))
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/restock-list/pdf", inventoryAccess(inventoryHandler.DownloadRestockPDF))
 	mux.HandleFunc("GET "+apiPrefix+"/inventory/{productId}/movements", inventoryAccess(inventoryHandler.GetMovements))
+
+	// Categories (Product Categories)
+	mux.HandleFunc("GET "+apiPrefix+"/categories", protected(categoryHandler.List))
+	mux.HandleFunc("GET "+apiPrefix+"/categories/{id}", protected(categoryHandler.GetByID))
+	mux.HandleFunc("POST "+apiPrefix+"/categories", adminOnly(categoryHandler.Create))
+	mux.HandleFunc("PUT "+apiPrefix+"/categories/{id}", adminOnly(categoryHandler.Update))
+	mux.HandleFunc("DELETE "+apiPrefix+"/categories/{id}", adminOnly(categoryHandler.Delete))
 
 	// Reports - Admin Only
 	mux.HandleFunc("GET "+apiPrefix+"/reports/daily", adminOnly(reportHandler.GetDailyReport))
