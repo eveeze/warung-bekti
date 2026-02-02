@@ -347,12 +347,17 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 	}
 	if input.ImageURL != nil {
 		setClauses = append(setClauses, fmt.Sprintf("image_url = $%d", argIndex))
-		args = append(args, input.ImageURL)
+		if *input.ImageURL == "" {
+			args = append(args, nil)
+		} else {
+			args = append(args, input.ImageURL)
+		}
 		argIndex++
 	}
 	
 	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
 	args = append(args, time.Now())
+	argIndex++
 
 	query := fmt.Sprintf(`
 		UPDATE products

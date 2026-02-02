@@ -14,9 +14,13 @@ import (
 	"github.com/eveeze/warung-backend/internal/pkg/logger"
 	"github.com/eveeze/warung-backend/internal/router"
 	"github.com/eveeze/warung-backend/internal/storage"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file
+	_ = godotenv.Load()
+
 	// Simple CLI parsing
 	if len(os.Args) < 2 {
 		// Default to running the server
@@ -131,15 +135,15 @@ func runServer() {
 		defer redis.Close()
 	}
 
-	// Connect to Minio
-	minio, err := storage.NewMinio(&cfg.Minio)
+	// Connect to R2
+	r2, err := storage.NewR2(&cfg.R2)
 	if err != nil {
-		logger.Warn("Failed to connect to Minio: %v", err)
-		minio = nil // Continue without Minio
+		logger.Warn("Failed to connect to R2: %v", err)
+		r2 = nil // Continue without storage
 	}
 
 	// Setup router
-	handler := router.New(cfg, db, redis, minio)
+	handler := router.New(cfg, db, redis, r2)
 
 	// Create HTTP server
 	server := &http.Server{

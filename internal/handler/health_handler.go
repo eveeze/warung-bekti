@@ -12,12 +12,12 @@ import (
 type HealthHandler struct {
 	db    *database.PostgresDB
 	redis *database.RedisClient
-	minio *storage.MinioClient
+	r2    *storage.R2Client
 }
 
 // NewHealthHandler creates a new HealthHandler
-func NewHealthHandler(db *database.PostgresDB, redis *database.RedisClient, minio *storage.MinioClient) *HealthHandler {
-	return &HealthHandler{db: db, redis: redis, minio: minio}
+func NewHealthHandler(db *database.PostgresDB, redis *database.RedisClient, r2 *storage.R2Client) *HealthHandler {
+	return &HealthHandler{db: db, redis: redis, r2: r2}
 }
 
 // Health returns the health status of all services
@@ -51,13 +51,13 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Check Minio
-	if h.minio != nil {
-		if err := h.minio.Health(ctx); err != nil {
+	// Check R2
+	if h.r2 != nil {
+		if err := h.r2.Health(ctx); err != nil {
 			status["status"] = "degraded"
-			status["services"].(map[string]string)["minio"] = "down"
+			status["services"].(map[string]string)["r2"] = "down"
 		} else {
-			status["services"].(map[string]string)["minio"] = "up"
+			status["services"].(map[string]string)["r2"] = "up"
 		}
 	}
 

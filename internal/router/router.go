@@ -18,7 +18,7 @@ func New(
 	cfg *config.Config,
 	db *database.PostgresDB,
 	redis *database.RedisClient,
-	minio *storage.MinioClient,
+	r2 *storage.R2Client,
 ) http.Handler {
 	mux := http.NewServeMux()
 
@@ -51,17 +51,18 @@ func New(
 	consignmentSvc := service.NewConsignmentService(db, consignmentRepo, transactionRepo)
 	refillableSvc := service.NewRefillableService(db, refillableRepo)
 	categorySvc := service.NewCategoryService(categoryRepo)
+	eventSvc := service.NewEventService()
 
 	// Initialize cache service
 	cacheSvc := service.NewCacheService(redis)
 
 	// Initialize handlers
-	healthHandler := handler.NewHealthHandler(db, redis, minio)
-	productHandler := handler.NewProductHandler(productRepo, minio, cacheSvc)
+	healthHandler := handler.NewHealthHandler(db, redis, r2)
+	productHandler := handler.NewProductHandler(productRepo, r2, cacheSvc)
 	customerHandler := handler.NewCustomerHandler(customerRepo)
 	transactionHandler := handler.NewTransactionHandler(transactionSvc, transactionRepo)
 	kasbonHandler := handler.NewKasbonHandler(kasbonRepo, customerRepo)
-	inventoryHandler := handler.NewInventoryHandler(inventoryRepo, productRepo)
+	inventoryHandler := handler.NewInventoryHandler(inventoryRepo, productRepo, cacheSvc, eventSvc)
 	reportHandler := handler.NewReportHandler(transactionRepo, kasbonRepo, inventoryRepo, productRepo)
 	authHandler := handler.NewAuthHandler(authSvc)
 	userHandler := handler.NewUserHandler(userSvc) // New Handler initialized
@@ -72,6 +73,7 @@ func New(
 	consignmentHandler := handler.NewConsignmentHandler(consignmentSvc)
 	refillableHandler := handler.NewRefillableHandler(refillableSvc)
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
+	eventHandler := handler.NewEventHandler(eventSvc)
 
 	// Health check routes (Public)
 	mux.HandleFunc("GET /health", healthHandler.Health)
@@ -82,6 +84,14 @@ func New(
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
 	mux.HandleFunc("POST /auth/register", authHandler.Register)
 	mux.HandleFunc("POST /auth/refresh", authHandler.RefreshToken)
+	
+	// Real-time Events (SSE) - Protected
+	// Frontend: const eventSource = new EventSource('/api/v1/events?token=...') or use EventSourcePolyfill for headers
+	// For simplicity, we can make it public or token in query param.
+	// Let's use Token in Header (EventSourcePolyfill) or Query param. 
+	// Middleware Auth usually checks Header.
+	// Let's assume protected.
+	mux.HandleFunc("GET /api/v1/events", eventHandler.Events)
 
 	// API v1 routes
 	apiPrefix := "/api/v1"
@@ -223,6 +233,7 @@ func New(
 	var h http.Handler = mux
 	h = middleware.Logging(h)
 	h = middleware.Audit(auditRepo)(h)
+	h = middleware.ETag(h) // Add ETag middleware
 	h = middleware.CORS(h)
 	h = middleware.RateLimit(1000, time.Minute)(h)
 	h = middleware.Recovery(h)

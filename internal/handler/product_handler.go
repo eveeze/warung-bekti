@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -21,15 +22,15 @@ import (
 // ProductHandler handles product endpoints
 type ProductHandler struct {
 	repo  *repository.ProductRepository
-	minio *storage.MinioClient
+	r2    *storage.R2Client
 	cache *service.CacheService
 }
 
 // NewProductHandler creates a new ProductHandler
-func NewProductHandler(repo *repository.ProductRepository, minio *storage.MinioClient, cache *service.CacheService) *ProductHandler {
+func NewProductHandler(repo *repository.ProductRepository, r2 *storage.R2Client, cache *service.CacheService) *ProductHandler {
 	return &ProductHandler{
 		repo:  repo,
-		minio: minio,
+		r2:    r2,
 		cache: cache,
 	}
 }
@@ -68,19 +69,29 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			// Process (Resize/Compress)
-			reader, size, contentType, filename, err := h.processImage(file, header)
-			if err != nil {
-				response.InternalServerError(w, "Failed to process image")
+			// Generate unique filename
+			ext := filepath.Ext(header.Filename)
+			if ext == "" {
+				ext = ".jpg"
+			}
+			newFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+			objectName := fmt.Sprintf("products/%s", newFilename)
+
+			// Check if R2 is available
+			if h.r2 == nil {
+				fmt.Println("ERROR: R2 client is nil (Storage not configured)")
+				response.InternalServerError(w, "Storage service unavailable")
 				return
 			}
 
-			// Upload to MinIO
-			// Use a simple path structure: products/{uuid-filename}
-			objectName := fmt.Sprintf("products/%s", filename)
-			url, err := h.minio.UploadFile(r.Context(), objectName, reader, size, contentType)
+			// Upload to R2 (handles resizing/compression)
+			// Reset file pointer just in case validateImage read it
+			file.Seek(0, 0)
+			
+			url, err := h.r2.UploadImage(r.Context(), objectName, file)
 			if err != nil {
-				response.InternalServerError(w, "Failed to upload image")
+				fmt.Printf("UPLOAD ERROR: %v\n", err)
+				response.InternalServerError(w, fmt.Sprintf("Failed to upload image: %v", err))
 				return
 			}
 
@@ -291,11 +302,13 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 				response.BadRequest(w, err.Error())
 				return
 			}
-			reader, size, contentType, filename, err := h.processImage(file, header)
-			if err != nil {
-				response.InternalServerError(w, "Failed to process image")
-				return
+			// Generate unique filename
+			ext := filepath.Ext(header.Filename)
+			if ext == "" {
+				ext = ".jpg"
 			}
+			newFilename := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+			objectName := fmt.Sprintf("products/%s", newFilename)
 
 			// Get existing product to delete old image later
 			existingProduct, err := h.repo.GetByID(r.Context(), id)
@@ -304,11 +317,19 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// Check if R2 is available
+			if h.r2 == nil {
+				fmt.Println("ERROR: R2 client is nil (Storage not configured)")
+				response.InternalServerError(w, "Storage service unavailable")
+				return
+			}
+
 			// Upload new image
-			objectName := fmt.Sprintf("products/%s", filename)
-			url, err := h.minio.UploadFile(r.Context(), objectName, reader, size, contentType)
+			file.Seek(0, 0)
+			url, err := h.r2.UploadImage(r.Context(), objectName, file)
 			if err != nil {
-				response.InternalServerError(w, "Failed to upload image")
+				fmt.Printf("UPLOAD ERROR: %v\n", err)
+				response.InternalServerError(w, fmt.Sprintf("Failed to upload image: %v", err))
 				return
 			}
 
@@ -322,19 +343,17 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 				// We need to parse the object name from the URL.
 				// Assuming standard structure: .../bucketName/objectName
 				// Simple hack: Take substring after bucket name?
-				// Better: Since we know the prefix "products/", we can just take the last part? No, nested paths.
-				// Let's assume we can tolerate not deleting for now or just log errors if parsing fails.
-				// Actually, `storage` package has `GetPublicURL`. We can't reverse it easily without robust parsing.
-				// But we stored the Full URL.
-				// Correct approach: Store OBJECT KEY in DB, or parse it here.
-				// Let's defer "Delete old image" logic until later or try a simple suffix match.
-				parts := strings.Split(*existingProduct.ImageURL, "/warung-assets/") // WARUNG_BUCKET_NAME default
-				if len(parts) > 1 {
-					key := parts[1]
-					// Run delete in background or ignore error
-					_ = h.minio.DeleteFile(r.Context(), key) 
+				key, err := h.r2.GetKeyFromURL(*existingProduct.ImageURL)
+				if err == nil && key != "" {
+					if h.r2 != nil {
+						// Log error but don't fail request
+						if err := h.r2.DeleteFile(r.Context(), key); err != nil {
+							fmt.Printf("WARNING: Failed to delete old image %s: %v\n", key, err)
+						}
+					}
 				}
 			}
+
 		}
 
 	} else {
@@ -342,6 +361,30 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 			response.BadRequest(w, "Invalid request body")
 			return
+		}
+
+		// Handle image removal (empty string)
+		if input.ImageURL != nil && *input.ImageURL == "" {
+			// Fetch existing product to delete image later
+			existingProduct, err := h.repo.GetByID(r.Context(), id)
+			if err != nil && err != domain.ErrNotFound {
+				response.InternalServerError(w, "Failed to check existing product")
+				return
+			}
+			
+			if existingProduct != nil && existingProduct.ImageURL != nil {
+				// Clean up old image after update
+				defer func() {
+					key, err := h.r2.GetKeyFromURL(*existingProduct.ImageURL)
+					if err == nil && key != "" {
+						if h.r2 != nil {
+							if err := h.r2.DeleteFile(r.Context(), key); err != nil {
+								fmt.Printf("WARNING: Failed to delete old image %s: %v\n", key, err)
+							}
+						}
+					}
+				}()
+			}
 		}
 	}
 
@@ -407,11 +450,11 @@ func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete image if exists
-	if product.ImageURL != nil {
-		parts := strings.Split(*product.ImageURL, "/warung-assets/")
-		if len(parts) > 1 {
-			key := parts[1]
-			_ = h.minio.DeleteFile(r.Context(), key)
+	// We check for nil r2 to avoid panic, though partial delete is better than crash
+	if product.ImageURL != nil && h.r2 != nil {
+		key, err := h.r2.GetKeyFromURL(*product.ImageURL)
+		if err == nil && key != "" {
+			_ = h.r2.DeleteFile(r.Context(), key)
 		}
 	}
 

@@ -11,7 +11,7 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Redis    RedisConfig
-	Minio    MinioConfig
+	R2       R2Config
 	JWT      JWTConfig
 	App      AppConfig
 	Midtrans MidtransConfig
@@ -49,13 +49,13 @@ type RedisConfig struct {
 	DB       int
 }
 
-// MinioConfig holds Minio configuration
-type MinioConfig struct {
-	Endpoint        string
+// R2Config holds Cloudflare R2 configuration
+type R2Config struct {
+	AccountID       string
 	AccessKeyID     string
 	SecretAccessKey string
-	UseSSL          bool
 	BucketName      string
+	PublicURL       string
 }
 
 // JWTConfig holds JWT configuration
@@ -109,12 +109,12 @@ func Load() *Config {
 			Password: getEnv("REDIS_PASSWORD", ""),
 			DB:       getIntEnv("REDIS_DB", 0),
 		},
-		Minio: MinioConfig{
-			Endpoint:        getEnv("MINIO_ENDPOINT", "localhost:9000"),
-			AccessKeyID:     getEnv("MINIO_ACCESS_KEY", "minioadmin"),
-			SecretAccessKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
-			UseSSL:          getBoolEnv("MINIO_USE_SSL", false),
-			BucketName:      getEnv("MINIO_BUCKET_NAME", "warung-assets"),
+	R2: R2Config{
+			AccountID:       getEnv("R2_ACCOUNT_ID", ""),
+			AccessKeyID:     getEnv("R2_ACCESS_KEY_ID", ""),
+			SecretAccessKey: getEnv("R2_SECRET_ACCESS_KEY", ""),
+			BucketName:      getEnv("R2_BUCKET_NAME", "warung-assets"),
+			PublicURL:       getEnv("R2_PUBLIC_URL", ""),
 		},
 		JWT: JWTConfig{
 			Secret:          getEnv("JWT_SECRET", "your-super-secret-key-change-in-production"),

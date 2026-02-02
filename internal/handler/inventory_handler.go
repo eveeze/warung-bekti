@@ -13,17 +13,30 @@ import (
 	"github.com/eveeze/warung-backend/internal/pkg/response"
 	"github.com/eveeze/warung-backend/internal/pkg/validator"
 	"github.com/eveeze/warung-backend/internal/repository"
+	"github.com/eveeze/warung-backend/internal/service"
 )
 
 // InventoryHandler handles inventory endpoints
 type InventoryHandler struct {
 	inventoryRepo *repository.InventoryRepository
 	productRepo   *repository.ProductRepository
+	cache         *service.CacheService
+	event         *service.EventService
 }
 
 // NewInventoryHandler creates a new InventoryHandler
-func NewInventoryHandler(inventoryRepo *repository.InventoryRepository, productRepo *repository.ProductRepository) *InventoryHandler {
-	return &InventoryHandler{inventoryRepo: inventoryRepo, productRepo: productRepo}
+func NewInventoryHandler(
+	inventoryRepo *repository.InventoryRepository,
+	productRepo *repository.ProductRepository,
+	cache *service.CacheService,
+	event *service.EventService,
+) *InventoryHandler {
+	return &InventoryHandler{
+		inventoryRepo: inventoryRepo,
+		productRepo:   productRepo,
+		cache:         cache,
+		event:         event,
+	}
 }
 
 // Restock adds stock to a product
@@ -60,6 +73,28 @@ func (h *InventoryHandler) Restock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Invalidate cache
+	// InvalidatePattern("products:list:*") - clears all product lists
+	// InvalidatePattern("reports:*") - clears reports
+	// Delete("product:{id}") - specific product cache if we have one (we might add it later)
+	_ = h.cache.InvalidatePattern(r.Context(), "products:list:*")
+	_ = h.cache.InvalidatePattern(r.Context(), "reports:*")
+
+	// Publish real-time event
+	// Data: { "product_id": ..., "new_stock": ... }
+	// We need new stock. Movement usually returns it, or we can fetch/guess.
+	// Movement struct usually has 'CurrentStock'. Let's assume so or fetch product.
+	// For efficiency, let's just send the movement which usually contains relevant data or just fetch.
+	// Actually, movement might be just the log. Let's fetch the product to be safe and accurate for UI updates.
+	product, _ := h.productRepo.GetByID(r.Context(), input.ProductID)
+	if product != nil {
+		h.event.Publish(service.EventStockUpdate, map[string]interface{}{
+			"product_id":    product.ID,
+			"current_stock": product.CurrentStock,
+			"is_low_stock":  product.CurrentStock <= product.MinStockAlert,
+		})
+	}
+
 	response.Created(w, "Stock restocked successfully", movement)
 }
 
@@ -94,6 +129,20 @@ func (h *InventoryHandler) Adjust(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response.InternalServerError(w, "Failed to adjust stock")
 		return
+	}
+
+	// Invalidate cache
+	_ = h.cache.InvalidatePattern(r.Context(), "products:list:*")
+	_ = h.cache.InvalidatePattern(r.Context(), "reports:*")
+
+	// Publish event
+	product, _ := h.productRepo.GetByID(r.Context(), input.ProductID)
+	if product != nil {
+		h.event.Publish(service.EventStockUpdate, map[string]interface{}{
+			"product_id":    product.ID,
+			"current_stock": product.CurrentStock,
+			"is_low_stock":  product.CurrentStock <= product.MinStockAlert,
+		})
 	}
 
 	response.Created(w, "Stock adjusted successfully", movement)

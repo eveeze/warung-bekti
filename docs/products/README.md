@@ -61,24 +61,32 @@ Create a new product (Admin only).
 
 #### Request Body
 
-```json
 {
-  "name": "New Product",
-  "barcode": "123456", // Optional
-  "sku": "SKU-NEW", // Optional
-  "description": "Product Description", // Optional
-  "category_id": "uuid", // Optional
-  "unit": "pcs",
-  "base_price": 15000,
-  "cost_price": 12000,
-  "is_stock_active": true, // Optional (default false?)
-  "current_stock": 100, // Optional
-  "min_stock_alert": 10, // Optional
-  "image_url": "http://minio...", // Optional
-  "is_refillable": false,
-  "pricing_tiers": [{ "min_quantity": 10, "price": 14000, "name": "Grosir" }]
+"name": "New Product",
+"barcode": "123456", // Optional
+"sku": "SKU-NEW", // Optional
+"description": "Product Description", // Optional
+"category_id": "uuid", // Optional
+"unit": "pcs",
+"base_price": 15000,
+"cost_price": 12000,
+"is_stock_active": true, // Optional (default false?)
+"current_stock": 100, // Optional
+"min_stock_alert": 10, // Optional
+"image_url": "https://pub-....r2.dev/products/...", // Optional (if not uploading file)
+"is_refillable": false,
+"pricing_tiers": [{ "min_quantity": 10, "price": 14000, "name": "Grosir" }]
 }
-```
+
+````
+
+> [!NOTE]
+> **Image Upload**: To upload an image, use `multipart/form-data`.
+> - Field `data`: Contains the JSON payload (stringified).
+> - Field `image`: Contains the image file.
+> - **Optimization**: Backend will automatically resize images to max 800x800px and compress to JPEG (Quality 75).
+> - **Max Size**: Please try to keep uploads under 5MB to avoid timeouts, though backend handles large files by resizing.
+
 
 #### Response (201 Created)
 
@@ -88,7 +96,7 @@ Create a new product (Admin only).
   "name": "New Product",
   ...
 }
-```
+````
 
 ### 3. Get Product By ID
 
@@ -120,6 +128,20 @@ Update an existing product.
 #### Request Body
 
 Same as Create Product, but all fields are optional (partial update).
+
+> [!NOTE]
+> **Image Update**: To update the image, use `multipart/form-data` similar to Create Product.
+>
+> - Field `data`: JSON payload.
+> - Field `image`: New image file.
+>
+> **Image Removal**: To remove an existing image, send a standard JSON `PUT` request with `"image_url": ""` (empty string).
+>
+> **Best Practices**:
+>
+> - Frontend should display images using the `image_url` directly.
+> - Images are cached heavily (`Cache-Control: public, max-age=1 year`).
+> - If an image acts "stuck" after update, append a random query param like `?v=timestamp` (though new logic uses UUID filenames so this shouldn't be needed).
 
 ### 5. Delete Product
 
