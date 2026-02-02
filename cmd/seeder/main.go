@@ -241,6 +241,7 @@ func seedProductsFromExcel(ctx context.Context, db *database.PostgresDB, product
 			IsStockActive: &isStockActive,
 			CurrentStock:  &currentStock,
 			MinStockAlert: &minStock,
+			IsActive:      func() *bool { b := false; return &b }(),
 		}
 
 		// Insert

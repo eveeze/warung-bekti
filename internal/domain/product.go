@@ -136,6 +136,7 @@ type ProductCreateInput struct {
 	FullProductID  *uuid.UUID        `json:"full_product_id,omitempty"`
 	PricingTiers   []PricingTierInput `json:"pricing_tiers,omitempty"`
 	ImageURL       *string            `json:"image_url,omitempty"`
+	IsActive       *bool              `json:"is_active,omitempty"`
 }
 
 // ProductUpdateInput is the input for updating a product

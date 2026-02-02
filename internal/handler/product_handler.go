@@ -198,9 +198,21 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	if query.Get("low_stock") == "true" {
 		filter.LowStockOnly = true
 	}
+	if isActive := query.Get("is_active"); isActive != "" {
+		if strings.ToLower(isActive) == "all" {
+			filter.IsActive = nil
+		} else if val, err := strconv.ParseBool(isActive); err == nil {
+			filter.IsActive = &val
+		}
+	}
+	if isStockActive := query.Get("is_stock_active"); isStockActive != "" {
+		if val, err := strconv.ParseBool(isStockActive); err == nil {
+			filter.IsStockActive = &val
+		}
+	}
 
 	// Generate cache key based on filters
-	cacheKey := fmt.Sprintf("products:list:%s:%s:%d:%d:%s:%s:%v",
+	cacheKey := fmt.Sprintf("products:list:%s:%s:%d:%d:%s:%s:%v:%v:%v",
 		query.Get("search"),
 		query.Get("category_id"),
 		filter.Page,
@@ -208,6 +220,8 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 		filter.SortBy,
 		filter.SortOrder,
 		filter.LowStockOnly,
+		query.Get("is_active"),
+		query.Get("is_stock_active"),
 	)
 
 	// Try cache first
@@ -345,6 +359,31 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	_ = h.cache.InvalidatePattern(r.Context(), "products:list:*")
 
 	response.OK(w, "Product updated", product)
+}
+
+// ToggleActive toggles a product's active status
+func (h *ProductHandler) ToggleActive(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.BadRequest(w, "Invalid product ID")
+		return
+	}
+
+	product, err := h.repo.ToggleActive(r.Context(), id)
+	if err == domain.ErrNotFound {
+		response.NotFound(w, "Product not found")
+		return
+	}
+	if err != nil {
+		response.InternalServerError(w, "Failed to toggle product status")
+		return
+	}
+
+	// Invalidate products cache
+	_ = h.cache.InvalidatePattern(r.Context(), "products:list:*")
+
+	response.OK(w, "Product status toggled", product)
 }
 
 // Delete soft deletes a product

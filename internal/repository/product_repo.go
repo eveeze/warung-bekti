@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -37,13 +38,17 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 	if input.MinStockAlert != nil {
 		minStockAlert = *input.MinStockAlert
 	}
+	isActive := true
+	if input.IsActive != nil {
+		isActive = *input.IsActive
+	}
 
 	query := `
 		INSERT INTO products (
 			barcode, sku, name, description, category_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
-			min_stock_alert, max_stock, image_url
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+			min_stock_alert, max_stock, image_url, is_active
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING id, barcode, sku, name, description, category_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
@@ -54,6 +59,7 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 		input.Barcode, input.SKU, input.Name, input.Description,
 		input.CategoryID, input.Unit, input.BasePrice, input.CostPrice,
 		isStockActive, currentStock, minStockAlert, input.MaxStock, input.ImageURL,
+		isActive,
 	).Scan(
 		&product.ID, &product.Barcode, &product.SKU, &product.Name,
 		&product.Description, &product.CategoryID, &product.Unit,
@@ -87,7 +93,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
-		WHERE id = $1 AND is_active = true
+		WHERE id = $1
 	`
 
 	var product domain.Product
@@ -118,7 +124,7 @@ func (r *ProductRepository) GetByBarcode(ctx context.Context, barcode string) (*
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
-		WHERE barcode = $1 AND is_active = true
+		WHERE barcode = $1
 	`
 
 	var product domain.Product
@@ -344,23 +350,68 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 		args = append(args, input.ImageURL)
 		argIndex++
 	}
+	
+	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
+	args = append(args, time.Now())
 
-	if len(setClauses) == 0 {
-		return product, nil // Nothing to update
-	}
-
-	args = append(args, id)
 	query := fmt.Sprintf(`
-		UPDATE products SET %s, updated_at = NOW()
+		UPDATE products
+		SET %s
 		WHERE id = $%d
+		RETURNING id, barcode, sku, name, description, category_id, unit,
+			base_price, cost_price, is_stock_active, current_stock,
+			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 	`, strings.Join(setClauses, ", "), argIndex)
 
-	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
+	args = append(args, id)
+
+	var p domain.Product
+	err = r.db.QueryRowContext(ctx, query, args...).Scan(
+		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID,
+		&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
+		&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
+	)
+	if err != nil {
 		return nil, fmt.Errorf("failed to update product: %w", err)
 	}
 
-	return r.GetByID(ctx, id)
+	p.PricingTiers = product.PricingTiers // Keep same pricing tiers
+
+	return &p, nil
 }
+
+// ToggleActive toggles the is_active status of a product
+func (r *ProductRepository) ToggleActive(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
+	query := `
+		UPDATE products
+		SET is_active = NOT is_active, updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, barcode, sku, name, description, category_id, unit,
+			base_price, cost_price, is_stock_active, current_stock,
+			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
+	`
+
+	var p domain.Product
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID,
+		&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
+		&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to toggle product active status: %w", err)
+	}
+
+	// Load pricing tiers
+	p.PricingTiers, _ = r.GetPricingTiers(ctx, p.ID)
+
+	return &p, nil
+}
+
+
+
 
 // UpdateStock updates the product stock
 func (r *ProductRepository) UpdateStock(ctx context.Context, id uuid.UUID, newStock int) error {

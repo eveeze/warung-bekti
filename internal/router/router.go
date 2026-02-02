@@ -132,6 +132,7 @@ func New(
 	mux.HandleFunc("GET "+apiPrefix+"/products/{id}", protected(productHandler.GetByID))
 	mux.HandleFunc("PUT "+apiPrefix+"/products/{id}", adminOnly(productHandler.Update))
 	mux.HandleFunc("DELETE "+apiPrefix+"/products/{id}", adminOnly(productHandler.Delete))
+	mux.HandleFunc("PATCH "+apiPrefix+"/products/{id}/toggle-active", adminOnly(productHandler.ToggleActive))
 	mux.HandleFunc("POST "+apiPrefix+"/products/{id}/pricing-tiers", adminOnly(productHandler.AddPricingTier))
 	mux.HandleFunc("PUT "+apiPrefix+"/products/{id}/pricing-tiers/{tierId}", adminOnly(productHandler.UpdatePricingTier))
 	mux.HandleFunc("DELETE "+apiPrefix+"/products/{id}/pricing-tiers/{tierId}", adminOnly(productHandler.DeletePricingTier))

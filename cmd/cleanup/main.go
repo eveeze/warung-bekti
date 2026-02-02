@@ -36,4 +36,18 @@ func main() {
 	}
 
 	fmt.Println("Database reset successfully.")
+
+	// Connect to Redis and flush
+	redisClient, err := database.NewRedis(&cfg.Redis)
+	if err != nil {
+		log.Printf("Failed to connect to Redis for cleanup: %v", err)
+	} else {
+		defer redisClient.Close()
+		if err := redisClient.FlushAll(ctx).Err(); err != nil {
+			log.Printf("Failed to flush Redis: %v", err)
+		} else {
+			fmt.Println("Redis cache flushed successfully.")
+		}
+	}
 }
+
