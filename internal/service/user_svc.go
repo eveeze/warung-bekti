@@ -46,13 +46,21 @@ func (s *UserService) UpdateUser(ctx context.Context, id uuid.UUID, req domain.U
 	user, err := s.repo.GetByID(ctx, id)
 	if err != nil { return nil, err }
 
-	user.Name = req.Name
-	user.Email = req.Email
-	user.Role = req.Role
-	user.IsActive = req.IsActive
+	if req.Name != nil {
+		user.Name = *req.Name
+	}
+	if req.Email != nil {
+		user.Email = *req.Email
+	}
+	if req.Role != nil {
+		user.Role = *req.Role
+	}
+	if req.IsActive != nil {
+		user.IsActive = *req.IsActive
+	}
 
-	if req.Password != "" {
-		hash, err := password.Hash(req.Password)
+	if req.Password != nil && *req.Password != "" {
+		hash, err := password.Hash(*req.Password)
 		if err != nil { return nil, err }
 		user.PasswordHash = hash
 	}

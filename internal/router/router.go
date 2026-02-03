@@ -224,6 +224,7 @@ func New(
 	mux.HandleFunc("POST "+apiPrefix+"/consignors", adminOnly(consignmentHandler.CreateConsignor))
 	mux.HandleFunc("GET "+apiPrefix+"/consignors", adminOnly(consignmentHandler.ListConsignors))
 	mux.HandleFunc("PUT "+apiPrefix+"/consignors/{id}", adminOnly(consignmentHandler.UpdateConsignor))
+	mux.HandleFunc("DELETE "+apiPrefix+"/consignors/{id}", adminOnly(consignmentHandler.DeleteConsignor))
 
 	// Refillables
 	mux.HandleFunc("GET "+apiPrefix+"/refillables", inventoryAccess(refillableHandler.GetContainers))
@@ -231,9 +232,9 @@ func New(
 
 	// Apply global middleware chain
 	var h http.Handler = mux
-	h = middleware.Logging(h)
 	h = middleware.Audit(auditRepo)(h)
 	h = middleware.ETag(h) // Add ETag middleware
+	h = middleware.Logging(h)
 	h = middleware.CORS(h)
 	h = middleware.RateLimit(1000, time.Minute)(h)
 	h = middleware.Recovery(h)

@@ -100,8 +100,17 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	v := validator.New()
-	v.Required("name", req.Name, "name is required")
-	v.Email("email", req.Email, "invalid email")
+	
+	if req.Name != nil {
+		v.Required("name", *req.Name, "name cannot be empty")
+	}
+	if req.Email != nil {
+		v.Required("email", *req.Email, "email cannot be empty")
+		v.Email("email", *req.Email, "invalid email")
+	}
+	if req.Password != nil {
+		v.MinLength("password", *req.Password, 6, "password must be at least 6 characters")
+	}
 
 	if v.HasErrors() {
 		response.ValidationError(w, v.Errors())

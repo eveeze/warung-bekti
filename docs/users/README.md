@@ -2,6 +2,31 @@
 
 Base URL: `/api/v1`
 
+## Business Context
+
+Managing staff access and security.
+
+- **Roles**:
+  - **Admin**: Full access.
+  - **Cashier**: Sales, Cash Flow, Customers.
+  - **Inventory**: Stock management only.
+
+## Frontend Implementation Guide
+
+### 1. Profile & Security
+
+> [!TIP]
+> **Optimistic UI**: User updates (Role/Active status) return `ETag`.
+> See [Optimistic UI Guide](../OPTIMISTIC_UI.md).
+
+- **Change Password**: Critical for security.
+- **PIN System**: For fast POS switching (future implementation).
+
+### 2. Admin User Management
+
+- List view with "Active/Inactive" toggle (Soft Delete).
+- Role assignment dropdown.
+
 ## Endpoints
 
 ### 1. List Users
@@ -24,6 +49,8 @@ Retrieve a paginated list of users.
 
 ```json
 {
+  "success": true,
+  "message": "Users retrieved",
   "data": [
     {
       "id": "uuid-string",
@@ -68,12 +95,16 @@ Create a new user account (Admin only).
 
 ```json
 {
-  "id": "uuid-string",
-  "name": "New User",
-  "email": "user@example.com",
-  "role": "cashier",
-  "is_active": true,
-  "...": "..."
+  "success": true,
+  "message": "User created",
+  "data": {
+    "id": "uuid-string",
+    "name": "New User",
+    "email": "user@example.com",
+    "role": "cashier",
+    "is_active": true,
+    "...": "..."
+  }
 }
 ```
 
@@ -89,12 +120,16 @@ Retrieve details of a specific user.
 
 ```json
 {
-  "id": "uuid-string",
-  "name": "User Name",
-  "email": "user@example.com",
-  "role": "cashier",
-  "is_active": true,
-  "...": "..."
+  "success": true,
+  "message": "User details",
+  "data": {
+    "id": "uuid-string",
+    "name": "User Name",
+    "email": "user@example.com",
+    "role": "cashier",
+    "is_active": true,
+    "...": "..."
+  }
 }
 ```
 
@@ -122,12 +157,16 @@ Update an existing user's details.
 
 ```json
 {
-  "id": "uuid-string",
-  "name": "Updated Name",
-  "email": "updated@example.com",
-  "role": "admin",
-  "is_active": true,
-  "...": "..."
+  "success": true,
+  "message": "User updated",
+  "data": {
+    "id": "uuid-string",
+    "name": "Updated Name",
+    "email": "updated@example.com",
+    "role": "admin",
+    "is_active": true,
+    "...": "..."
+  }
 }
 ```
 
@@ -143,6 +182,8 @@ Soft delete a user account.
 
 ```json
 {
-  "message": "User deleted successfully"
+  "success": true,
+  "message": "User deleted successfully",
+  "data": null
 }
 ```

@@ -36,6 +36,10 @@ func (s *ConsignmentService) ListConsignors(ctx context.Context) ([]domain.Consi
 	return s.consignmentRepo.ListConsignors(ctx)
 }
 
+func (s *ConsignmentService) DeleteConsignor(ctx context.Context, id uuid.UUID) error {
+	return s.consignmentRepo.DeleteConsignor(ctx, id)
+}
+
 // GenerateSettlement calculates sales for a consignor in a period
 // Simplified logic: Query transactions for products belonging to consignor
 func (s *ConsignmentService) GenerateSettlement(ctx context.Context, consignorID uuid.UUID, createdBy string) (*domain.ConsignmentSettlement, error) {

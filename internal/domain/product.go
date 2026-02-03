@@ -15,6 +15,7 @@ type Product struct {
 	Name          string     `json:"name"`
 	Description   *string    `json:"description,omitempty"`
 	CategoryID    *uuid.UUID `json:"category_id,omitempty"`
+	ConsignorID   *uuid.UUID `json:"consignor_id,omitempty"` // Added ConsignorID
 	Unit          string     `json:"unit"`
 	BasePrice     int64      `json:"base_price"`      // harga jual dasar (rupiah)
 	CostPrice     int64      `json:"cost_price"`      // harga beli/HPP
@@ -124,6 +125,7 @@ type ProductCreateInput struct {
 	Name          string             `json:"name"`
 	Description   *string            `json:"description,omitempty"`
 	CategoryID    *uuid.UUID         `json:"category_id,omitempty"`
+	ConsignorID   *uuid.UUID         `json:"consignor_id,omitempty"` // Added ConsignorID
 	Unit          string             `json:"unit"`
 	BasePrice     int64              `json:"base_price"`
 	CostPrice     int64              `json:"cost_price"`
@@ -146,6 +148,7 @@ type ProductUpdateInput struct {
 	Name          *string    `json:"name,omitempty"`
 	Description   *string    `json:"description,omitempty"`
 	CategoryID    *uuid.UUID `json:"category_id,omitempty"`
+	ConsignorID   *uuid.UUID `json:"consignor_id,omitempty"` // Added ConsignorID
 	Unit          *string    `json:"unit,omitempty"`
 	BasePrice     *int64     `json:"base_price,omitempty"`
 	CostPrice     *int64     `json:"cost_price,omitempty"`
@@ -171,6 +174,7 @@ type PricingTierInput struct {
 type ProductFilter struct {
 	Search        *string    `json:"search,omitempty"`
 	CategoryID    *uuid.UUID `json:"category_id,omitempty"`
+	ConsignorID   *uuid.UUID `json:"consignor_id,omitempty"` // Added ConsignorID
 	IsActive      *bool      `json:"is_active,omitempty"`
 	IsStockActive *bool      `json:"is_stock_active,omitempty"`
 	LowStockOnly  bool       `json:"low_stock_only,omitempty"`

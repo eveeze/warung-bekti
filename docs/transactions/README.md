@@ -2,6 +2,33 @@
 
 Base URL: `/api/v1`
 
+## Business Context
+
+Transactions represent the sales activity in the Warung.
+
+- **Workflow**: Cart -> Calculate (Apply Discounts/Wholesale) -> Payment -> Receipt.
+- **Kasbon**: Supports "Pay Later" (Credit) which links to the Customer module.
+- **Void/Cancel**: Reverses the sale and restores inventory.
+
+## Frontend Implementation Guide
+
+### 1. Checkout Flow
+
+> [!TIP]
+> **Optimistic UI**: Frontend can calculate totals locally for instant feedback.
+> Use `POST /transactions/calculate` for the authoritative final price.
+> See [Optimistic UI Guide](../OPTIMISTIC_UI.md).
+
+1.  **Calculate**: Call `POST /transactions/calculate` whenever cart changes (debounce 300ms) to show accurate totals covering wholesale prices.
+2.  **Payment Modal**: Select method (Cash, Transfer, Kasbon).
+3.  **Submit**: Call `POST /transactions`.
+4.  **Success**: Show "Change Due" (Kembalian) and "Print Receipt" button.
+
+### 2. Receipt Printing
+
+- Use a library like `react-native-thermal-receipt-printer` or standard Web Print API.
+- Data comes from the `POST /transactions` response (including `invoice_number`, `items`, `total`, `change`).
+
 ## Endpoints
 
 ### 1. List Transactions
@@ -57,12 +84,16 @@ Process a sale.
 
 ```json
 {
-  "id": "uuid",
-  "invoice_number": "INV/2023/10/01/001",
-  "total_amount": 45000,
-  "change_amount": 5000,
-  "status": "completed",
-  ...
+  "success": true,
+  "message": "Transaction created successfully",
+  "data": {
+    "id": "uuid",
+    "invoice_number": "INV/2023/10/01/001",
+    "total_amount": 45000,
+    "change_amount": 5000,
+    "status": "completed",
+    ...
+  }
 }
 ```
 
@@ -86,15 +117,19 @@ Preview totals before checkout (checks pricing tiers).
 
 ```json
 {
-  "items": [
-    {
-      "product_id": "uuid",
-      "unit_price": 10000,
-      "tier_name": "Grosir",
-      "subtotal": 100000
-    }
-  ],
-  "subtotal": 100000
+  "success": true,
+  "message": "Calculation result",
+  "data": {
+    "items": [
+      {
+        "product_id": "uuid",
+        "unit_price": 10000,
+        "tier_name": "Grosir",
+        "subtotal": 100000
+      }
+    ],
+    "subtotal": 100000
+  }
 }
 ```
 

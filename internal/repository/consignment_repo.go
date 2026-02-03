@@ -127,3 +127,19 @@ func (r *ConsignmentRepository) CreateSettlement(ctx context.Context, s *domain.
 
 	return tx.Commit()
 }
+
+func (r *ConsignmentRepository) DeleteConsignor(ctx context.Context, id uuid.UUID) error {
+	query := `UPDATE consignors SET is_active = false, updated_at = NOW() WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}

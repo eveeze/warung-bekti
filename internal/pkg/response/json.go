@@ -145,6 +145,12 @@ func NoContent(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// PreconditionFailed sends a 412 Precondition Failed response
+// Used for Optimistic Concurrency Control (If-Match)
+func PreconditionFailed(w http.ResponseWriter, message string) {
+	Error(w, http.StatusPreconditionFailed, "PRECONDITION_FAILED", message)
+}
+
 // CalculateTotalPages calculates the total number of pages
 func CalculateTotalPages(total int64, perPage int) int {
 	if perPage <= 0 {

@@ -2,6 +2,29 @@
 
 Base URL: `/api/v1`
 
+## Business Context
+
+Stock Opname (Stock Take/Audit) aligns the system numbers with physical reality.
+
+- **Cycle**: Start Session -> Count Physical Items -> Compare (Variance) -> Finalize (Update System).
+- **Loss Prevention**: Identifies theft or shrinkage.
+
+## Frontend Implementation Guide
+
+### 1. Opname Workflow
+
+> [!TIP]
+> **Optimistic UI**: Perform counting offline.
+> Sync one-by-one or in batch when online. Backend returns `ETag` for valid sync.
+> See [Optimistic UI Guide](../OPTIMISTIC_UI.md).
+
+- **Step 1: Start**: Button to create session.
+- **Step 2: Counting**: List of all products with input field for `physical_stock`.
+  - Support barcode scanning to verify item before input.
+  - Offline support critical here (often done in warehouse with bad signal).
+- **Step 3: Review**: Show "Variance" (System - Physical). Highlight huge discrepancies.
+- **Step 4: Finalize**: Confirms changes and updates the main product stock.
+
 ## Endpoints
 
 ### 1. List Sessions
@@ -26,6 +49,16 @@ Begin a new stock taking session.
 {
   "notes": "Monthly Audit",
   "created_by": "Staff Id"
+}
+```
+
+#### Response (201 Created)
+
+```json
+{
+  "success": true,
+  "message": "Session started",
+  "data": { "id": "uuid", ... }
 }
 ```
 
@@ -56,6 +89,16 @@ Submit physical count for a product.
 }
 ```
 
+#### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Item counted",
+  "data": { ... }
+}
+```
+
 ### 5. Get Variance Report
 
 View discrepancies in a session.
@@ -68,17 +111,21 @@ View discrepancies in a session.
 
 ```json
 {
-  "total_variance": -5,
-  "total_loss_value": 50000,
-  "items": [
-    {
-      "product_name": "Item A",
-      "system_stock": 50,
-      "physical_stock": 45,
-      "variance": -5,
-      "variance_value": -50000
-    }
-  ]
+  "success": true,
+  "message": "Variance report",
+  "data": {
+    "total_variance": -5,
+    "total_loss_value": 50000,
+    "items": [
+      {
+        "product_name": "Item A",
+        "system_stock": 50,
+        "physical_stock": 45,
+        "variance": -5,
+        "variance_value": -50000
+      }
+    ]
+  }
 }
 ```
 

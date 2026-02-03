@@ -43,11 +43,11 @@ type UserListParams struct {
 }
 
 type UpdateUserRequest struct {
-	Name     string   `json:"name" validate:"required"`
-	Email    string   `json:"email" validate:"required,email"`
-	Password string   `json:"password,omitempty" validate:"omitempty,min=6"`
-	Role     UserRole `json:"role" validate:"required"`
-	IsActive bool     `json:"is_active"`
+	Name     *string   `json:"name"`
+	Email    *string   `json:"email"`
+	Password *string   `json:"password"`
+	Role     *UserRole `json:"role"`
+	IsActive *bool     `json:"is_active"`
 }
 
 type UserRepository interface {

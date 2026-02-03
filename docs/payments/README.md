@@ -2,6 +2,32 @@
 
 Base URL: `/api/v1`
 
+## Business Context
+
+Handles all money collection methods.
+
+- **Midtrans**: Automated payments (QRIS, VA).
+- **Manual**: Cash (Physical), Transfer (Requires manual verification check).
+
+## Frontend Implementation Guide
+
+### 1. Midtrans Snap
+
+> [!TIP]
+> **Optimistic UI**: Polling status can be done in background.
+> Use `ETag` on polling endpoint to reduce bandwidth (304 Not Modified).
+> See [Optimistic UI Guide](../OPTIMISTIC_UI.md).
+
+1.  Frontend sends checkout data to `POST /payments/snap`.
+2.  Backend returns `token` and `redirect_url`.
+3.  **Web**: Redirect user to `redirect_url` or use Snap.js popup.
+4.  **Mobile**: Use WebView to load `redirect_url`.
+
+### 2. Payment Status
+
+- **Polling**: Frontend polls `GET /payments/transaction/{id}` every 3s until status becomes `paid`.
+- **UI**: Show "Waiting for Payment..." spinner.
+
 ## Endpoints
 
 ### 1. Generate Snap Token (Midtrans)
@@ -29,13 +55,18 @@ Initiate a payment and get a Snap token.
 
 #### Response (200 OK)
 
+````json
 ```json
 {
-  "token": "snap-token-123",
-  "redirect_url": "https://app.sandbox.midtrans.com/...",
-  "order_id": "ORDER-123"
+  "success": true,
+  "message": "Snap token generated",
+  "data": {
+    "token": "snap-token-123",
+    "redirect_url": "https://app.sandbox.midtrans.com/...",
+    "order_id": "ORDER-123"
+  }
 }
-```
+````
 
 ### 2. Handle Midtrans Notification
 
@@ -65,6 +96,16 @@ Manually verify a payment if automated callback fails.
 }
 ```
 
+#### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Payment verified",
+  "data": { "status": "paid" }
+}
+```
+
 ### 4. Get Payment By Transaction
 
 Check payment status for a transaction.
@@ -72,3 +113,17 @@ Check payment status for a transaction.
 - **URL**: `/payments/transaction/{id}`
 - **Method**: `GET`
 - **Auth Required**: Yes (Cashier)
+
+#### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Payment status",
+  "data": {
+    "transaction_id": "uuid",
+    "status": "paid", // pending, paid, expired
+    "payment_type": "qris"
+  }
+}
+```

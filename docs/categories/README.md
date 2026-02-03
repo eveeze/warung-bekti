@@ -2,6 +2,29 @@
 
 Base URL: `/api/v1`
 
+## Business Context
+
+Categories organize products for easier navigation in the POS and reporting.
+
+- **Organization**: Grouping similar items (e.g., "Snacks", "Drinks").
+- **Reporting**: Sales reports are often aggregated by category.
+
+## Frontend Implementation Guide
+
+### 1. POS Sidebar
+
+> [!TIP]
+> **Optimistic UI**: Pre-load subcategories or assume success when expanding trees.
+> Use `ETag` headers to validate category lists.
+> See [Optimistic UI Guide](../OPTIMISTIC_UI.md).
+
+- Fetch categories to render the sidebar navigation.
+- Filtering products by `category_id` when a user clicks a category.
+
+### 2. Category Management
+
+- **Deletion Logic**: Before deleting, check `product_count`. If > 0, warn the user "Category has X products. Please reassign them first." or allow force delete (setting product category to null).
+
 ## Endpoints
 
 ### 1. List Categories
@@ -16,6 +39,8 @@ Retrieve all categories (flat list).
 
 ```json
 {
+  "success": true,
+  "message": "Categories retrieved",
   "data": [
     {
       "id": "uuid",
@@ -50,9 +75,13 @@ Create a new category (Admin only).
 
 ```json
 {
-  "id": "uuid",
-  "name": "Snacks",
-  ...
+  "success": true,
+  "message": "Category created",
+  "data": {
+    "id": "uuid",
+    "name": "Snacks",
+    ...
+  }
 }
 ```
 

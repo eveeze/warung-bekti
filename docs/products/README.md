@@ -2,6 +2,35 @@
 
 Base URL: `/api/v1`
 
+## Business Context
+
+Products are the items sold in the Warung.
+
+- **Stock Management**: Tracks inventory levels (`current_stock`) and alerts (`min_stock_alert`).
+- **Pricing Tiers**: Supports wholesale pricing (e.g., Buy 10 get lower price).
+- **Barcodes**: Essential for fast checkout using scanners.
+
+## Frontend Implementation Guide
+
+> [!TIP]
+> **Optimistic UI Support**: All mutation endpoints (POST/PUT/DELETE) return an `ETag` header.
+> Use this `ETag` to update your local cache without refetching.
+> See [Optimistic UI Guide](../OPTIMISTIC_UI.md) for implementation details.
+
+### 1. Product List (Infinite Scroll)
+
+- **API**: `GET /api/v1/products?page=1&per_page=20`
+- **Logic**:
+  - Use React Query / TanStack Query `useInfiniteQuery`.
+  - Detect scroll to bottom -> fetch next page.
+  - **Debounce Search**: Wait 500ms after user stops typing in search bar before calling API.
+
+### 2. Product Form (Create/Update)
+
+- **Validation**: Ensure `base_price` >= `cost_price` to prevent loss (warn user if not).
+- **Image Upload**: See [Frontend Image Upload Guide](../../frontend_image_upload_guide.md).
+- **Pricing Tiers**: Dynamic form array (add/remove tiers).
+
 ## Endpoints
 
 ### 1. List Products
@@ -30,6 +59,8 @@ Retrieve a paginated list of products with optional filtering.
 
 ```json
 {
+  "success": true,
+  "message": "Products retrieved successfully",
   "data": [
     {
       "id": "uuid",
@@ -90,11 +121,17 @@ Create a new product (Admin only).
 
 #### Response (201 Created)
 
+Returns the created product data with **ETag** header.
+
 ```json
 {
-  "id": "uuid",
-  "name": "New Product",
-  ...
+  "success": true,
+  "message": "Product created successfully",
+  "data": {
+    "id": "uuid",
+    "name": "New Product",
+    ...
+  }
 }
 ````
 
@@ -110,10 +147,14 @@ Retrieve details of a specific product.
 
 ```json
 {
-  "id": "uuid",
-  "name": "Product Name",
-  "pricing_tiers": [...],
-  ...
+  "success": true,
+  "message": "Product details",
+  "data": {
+    "id": "uuid",
+    "name": "Product Name",
+    "pricing_tiers": [...],
+    ...
+  }
 }
 ```
 
@@ -141,7 +182,17 @@ Same as Create Product, but all fields are optional (partial update).
 >
 > - Frontend should display images using the `image_url` directly.
 > - Images are cached heavily (`Cache-Control: public, max-age=1 year`).
-> - If an image acts "stuck" after update, append a random query param like `?v=timestamp` (though new logic uses UUID filenames so this shouldn't be needed).
+> - Use the `ETag` returned in the response headers to update your local cache optimistically.
+
+#### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Product updated successfully",
+  "data": { ...updated_product_data... }
+}
+```
 
 ### 5. Delete Product
 

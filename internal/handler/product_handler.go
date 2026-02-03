@@ -190,6 +190,11 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 			filter.CategoryID = &id
 		}
 	}
+	if consignorID := query.Get("consignor_id"); consignorID != "" {
+		if id, err := uuid.Parse(consignorID); err == nil {
+			filter.ConsignorID = &id
+		}
+	}
 	if page := query.Get("page"); page != "" {
 		if p, err := strconv.Atoi(page); err == nil {
 			filter.Page = p
@@ -223,9 +228,10 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate cache key based on filters
-	cacheKey := fmt.Sprintf("products:list:%s:%s:%d:%d:%s:%s:%v:%v:%v",
+	cacheKey := fmt.Sprintf("products:list:%s:%s:%s:%d:%d:%s:%s:%v:%v:%v",
 		query.Get("search"),
 		query.Get("category_id"),
+		query.Get("consignor_id"), // Added to cache key
 		filter.Page,
 		filter.PerPage,
 		filter.SortBy,

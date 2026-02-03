@@ -68,3 +68,23 @@ func (h *ConsignmentHandler) UpdateConsignor(w http.ResponseWriter, r *http.Requ
 	}
 	response.OK(w, "Consignor updated", consignor)
 }
+
+func (h *ConsignmentHandler) DeleteConsignor(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.BadRequest(w, "Invalid ID")
+		return
+	}
+
+	if err := h.consignmentSvc.DeleteConsignor(r.Context(), id); err != nil {
+		if err == domain.ErrNotFound {
+			response.NotFound(w, "Consignor not found")
+			return
+		}
+		response.InternalServerError(w, err.Error())
+		return
+	}
+
+	response.OK(w, "Consignor deleted successfully", nil)
+}

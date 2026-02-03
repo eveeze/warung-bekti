@@ -45,11 +45,11 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 
 	query := `
 		INSERT INTO products (
-			barcode, sku, name, description, category_id, unit,
+			barcode, sku, name, description, category_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-		RETURNING id, barcode, sku, name, description, category_id, unit,
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		RETURNING id, barcode, sku, name, description, category_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 	`
@@ -57,12 +57,12 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 	var product domain.Product
 	err := r.db.QueryRowContext(ctx, query,
 		input.Barcode, input.SKU, input.Name, input.Description,
-		input.CategoryID, input.Unit, input.BasePrice, input.CostPrice,
+		input.CategoryID, input.ConsignorID, input.Unit, input.BasePrice, input.CostPrice,
 		isStockActive, currentStock, minStockAlert, input.MaxStock, input.ImageURL,
 		isActive,
 	).Scan(
 		&product.ID, &product.Barcode, &product.SKU, &product.Name,
-		&product.Description, &product.CategoryID, &product.Unit,
+		&product.Description, &product.CategoryID, &product.ConsignorID, &product.Unit,
 		&product.BasePrice, &product.CostPrice, &product.IsStockActive,
 		&product.CurrentStock, &product.MinStockAlert, &product.MaxStock,
 		&product.ImageURL, &product.IsActive, &product.CreatedAt, &product.UpdatedAt,
@@ -89,7 +89,7 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 // GetByID retrieves a product by ID
 func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
 	query := `
-		SELECT id, barcode, sku, name, description, category_id, unit,
+		SELECT id, barcode, sku, name, description, category_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
@@ -99,7 +99,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.
 	var product domain.Product
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&product.ID, &product.Barcode, &product.SKU, &product.Name,
-		&product.Description, &product.CategoryID, &product.Unit,
+		&product.Description, &product.CategoryID, &product.ConsignorID, &product.Unit,
 		&product.BasePrice, &product.CostPrice, &product.IsStockActive,
 		&product.CurrentStock, &product.MinStockAlert, &product.MaxStock,
 		&product.ImageURL, &product.IsActive, &product.CreatedAt, &product.UpdatedAt,
@@ -120,7 +120,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.
 // GetByBarcode retrieves a product by barcode
 func (r *ProductRepository) GetByBarcode(ctx context.Context, barcode string) (*domain.Product, error) {
 	query := `
-		SELECT id, barcode, sku, name, description, category_id, unit,
+		SELECT id, barcode, sku, name, description, category_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
@@ -130,7 +130,7 @@ func (r *ProductRepository) GetByBarcode(ctx context.Context, barcode string) (*
 	var product domain.Product
 	err := r.db.QueryRowContext(ctx, query, barcode).Scan(
 		&product.ID, &product.Barcode, &product.SKU, &product.Name,
-		&product.Description, &product.CategoryID, &product.Unit,
+		&product.Description, &product.CategoryID, &product.ConsignorID, &product.Unit,
 		&product.BasePrice, &product.CostPrice, &product.IsStockActive,
 		&product.CurrentStock, &product.MinStockAlert, &product.MaxStock,
 		&product.ImageURL, &product.IsActive, &product.CreatedAt, &product.UpdatedAt,
@@ -166,6 +166,12 @@ func (r *ProductRepository) List(ctx context.Context, filter domain.ProductFilte
 	if filter.CategoryID != nil {
 		conditions = append(conditions, fmt.Sprintf("category_id = $%d", argIndex))
 		args = append(args, *filter.CategoryID)
+		argIndex++
+	}
+
+	if filter.ConsignorID != nil {
+		conditions = append(conditions, fmt.Sprintf("consignor_id = $%d", argIndex))
+		args = append(args, *filter.ConsignorID)
 		argIndex++
 	}
 
@@ -224,7 +230,7 @@ func (r *ProductRepository) List(ctx context.Context, filter domain.ProductFilte
 
 	// Main query
 	query := fmt.Sprintf(`
-		SELECT id, barcode, sku, name, description, category_id, unit,
+		SELECT id, barcode, sku, name, description, category_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
@@ -310,6 +316,11 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 		args = append(args, input.CategoryID)
 		argIndex++
 	}
+	if input.ConsignorID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("consignor_id = $%d", argIndex))
+		args = append(args, input.ConsignorID)
+		argIndex++
+	}
 	if input.Unit != nil {
 		setClauses = append(setClauses, fmt.Sprintf("unit = $%d", argIndex))
 		args = append(args, *input.Unit)
@@ -363,7 +374,7 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 		UPDATE products
 		SET %s
 		WHERE id = $%d
-		RETURNING id, barcode, sku, name, description, category_id, unit,
+		RETURNING id, barcode, sku, name, description, category_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 	`, strings.Join(setClauses, ", "), argIndex)
@@ -372,7 +383,7 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 
 	var p domain.Product
 	err = r.db.QueryRowContext(ctx, query, args...).Scan(
-		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID,
+		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.ConsignorID,
 		&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
 		&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
@@ -391,14 +402,14 @@ func (r *ProductRepository) ToggleActive(ctx context.Context, id uuid.UUID) (*do
 		UPDATE products
 		SET is_active = NOT is_active, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, barcode, sku, name, description, category_id, unit,
+		RETURNING id, barcode, sku, name, description, category_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 	`
 
 	var p domain.Product
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID,
+		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.ConsignorID,
 		&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
 		&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
@@ -460,7 +471,7 @@ func (r *ProductRepository) Delete(ctx context.Context, id uuid.UUID) error {
 // GetLowStockProducts gets products below minimum stock level
 func (r *ProductRepository) GetLowStockProducts(ctx context.Context) ([]domain.LowStockProduct, error) {
 	query := `
-		SELECT id, barcode, sku, name, description, category_id, unit,
+		SELECT id, barcode, sku, name, description, category_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
@@ -480,7 +491,7 @@ func (r *ProductRepository) GetLowStockProducts(ctx context.Context) ([]domain.L
 	for rows.Next() {
 		var p domain.Product
 		if err := rows.Scan(
-			&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID,
+			&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.ConsignorID,
 			&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
 			&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {

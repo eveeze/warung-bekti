@@ -2,6 +2,31 @@
 
 Base URL: `/api/v1`
 
+## Business Context
+
+Manages customer relationships and, crucially, **Kasbon (Debt)**.
+
+- **Kasbon**: "Buy now, pay later". System tracks credit limits and outstanding balances.
+- **Loyalty**: Tracking purchase history for potential rewards (future).
+
+## Frontend Implementation Guide
+
+### 1. Customer List
+
+> [!TIP]
+> **Optimistic UI**: Update debt status immediately upon payment.
+> Use `ETag` to validate customer lists.
+> See [Optimistic UI Guide](../OPTIMISTIC_UI.md).
+
+- **Debt Indicator**: Highlight customers with `current_debt > 0` (Red badge).
+- **Search**: Optimize for searching by Name OR Phone Number.
+
+### 2. Paying Debt (Kasbon Repayment)
+
+- Accessible from **Customer Details** page.
+- **Modal**: Input "Amount to Pay".
+- **Logic**: Call `POST /kasbon/customers/{id}/payments`. Update UI to reflect lower debt immediately.
+
 ## Endpoints
 
 ### 1. List Customers
@@ -26,6 +51,8 @@ Retrieve a paginated list of customers.
 
 ```json
 {
+  "success": true,
+  "message": "Customers retrieved",
   "data": [
     {
       "id": "uuid",
@@ -57,6 +84,16 @@ Register a new customer.
   "address": "Alamat", // Optional
   "notes": "Catatan", // Optional
   "credit_limit": 1000000 // Optional
+}
+```
+
+#### Response (201 Created)
+
+```json
+{
+  "success": true,
+  "message": "Customer created",
+  "data": { "id": "uuid", "name": "New Customer", ... }
 }
 ```
 
@@ -126,4 +163,21 @@ Record a payment against a customer's debt.
 
 #### Request Body
 
-TODO: Check `PaymentHandler.RecordPayment` for body, likely `{ "amount": 10000, "notes": "..." }`
+#### Request Body
+
+```json
+{
+  "amount": 10000,
+  "notes": "Partial payment"
+}
+```
+
+#### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Payment recorded",
+  "data": { "new_debt_balance": 10000 }
+}
+```
