@@ -43,6 +43,14 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 		isActive = *input.IsActive
 	}
 
+	// Handle empty strings for Unique constraints (convert to nil)
+	if input.Barcode != nil && *input.Barcode == "" {
+		input.Barcode = nil
+	}
+	if input.SKU != nil && *input.SKU == "" {
+		input.SKU = nil
+	}
+
 	query := `
 		INSERT INTO products (
 			barcode, sku, name, description, category_id, consignor_id, unit,
@@ -251,7 +259,7 @@ func (r *ProductRepository) List(ctx context.Context, filter domain.ProductFilte
 	for rows.Next() {
 		var p domain.Product
 		if err := rows.Scan(
-			&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID,
+			&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.ConsignorID,
 			&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
 			&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
@@ -293,12 +301,20 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 
 	if input.Barcode != nil {
 		setClauses = append(setClauses, fmt.Sprintf("barcode = $%d", argIndex))
-		args = append(args, input.Barcode)
+		if *input.Barcode == "" {
+			args = append(args, nil)
+		} else {
+			args = append(args, input.Barcode)
+		}
 		argIndex++
 	}
 	if input.SKU != nil {
 		setClauses = append(setClauses, fmt.Sprintf("sku = $%d", argIndex))
-		args = append(args, input.SKU)
+		if *input.SKU == "" {
+			args = append(args, nil)
+		} else {
+			args = append(args, input.SKU)
+		}
 		argIndex++
 	}
 	if input.Name != nil {

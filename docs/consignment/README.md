@@ -18,7 +18,10 @@ Manages "Titip Jual" (goods owned by others).
 > Use `ETag` to cache consignor lists and settlement history.
 > See [Optimistic UI Guide](../OPTIMISTIC_UI.md).
 
-- **Owed Amount**: Calculation: `Total Sales of Consignment Items` - `Commission`.a product, show a dropdown **"Supplier / Consignor"**.
+### 2. Product Management (Association)
+
+- **Edit Product**: When adding/editing a product, show a dropdown **"Supplier / Consignor"**.
+- **API**: Use the `consignor_id` field in the Product API.
 - **Context**: Linking a product to a consignor allows the system to track who owns the stock and who needs to be paid when it sells.
 
 ### 3. Inventory Filters

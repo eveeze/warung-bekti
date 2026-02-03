@@ -103,6 +103,10 @@ func (h *TransactionHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	filter := domain.TransactionFilter{Page: 1, PerPage: 20, SortBy: "created_at", SortOrder: "desc"}
 
+	if search := query.Get("search"); search != "" {
+		filter.Search = &search
+	}
+
 	if customerID := query.Get("customer_id"); customerID != "" {
 		if id, err := uuid.Parse(customerID); err == nil {
 			filter.CustomerID = &id

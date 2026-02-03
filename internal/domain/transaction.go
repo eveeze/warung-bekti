@@ -130,6 +130,7 @@ type CartItemResult struct {
 
 // TransactionFilter is the filter options for listing transactions
 type TransactionFilter struct {
+	Search        *string            `json:"search,omitempty"`
 	CustomerID    *uuid.UUID         `json:"customer_id,omitempty"`
 	Status        *TransactionStatus `json:"status,omitempty"`
 	PaymentMethod *PaymentMethod     `json:"payment_method,omitempty"`

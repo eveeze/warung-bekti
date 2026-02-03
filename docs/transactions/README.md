@@ -45,11 +45,36 @@ Retrieve sales history.
 | :--------------- | :------- | :---------------------------- |
 | `page`           | `int`    | Page number                   |
 | `per_page`       | `int`    | Items per page                |
+| `search`         | `string` | Search Invoice or Customer    |
 | `customer_id`    | `uuid`   | Filter by customer            |
 | `status`         | `string` | pending, completed, cancelled |
 | `payment_method` | `string` | cash, kasbon, transfer        |
 | `date_from`      | `string` | ISO Date                      |
 | `date_to`        | `string` | ISO Date                      |
+
+#### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Transactions retrieved",
+  "data": [
+    {
+      "id": "uuid",
+      "invoice_number": "INV/...",
+      "customer_id": "uuid",
+      "customer": {
+        "id": "uuid",
+        "name": "Budi Santoso"
+      },
+      "total_amount": 50000,
+      "status": "completed",
+      "created_at": "2023-..."
+    }
+  ],
+  "meta": { "page": 1, "per_page": 20, "total": 100 }
+}
+```
 
 ### 2. Create Transaction (Checkout)
 
@@ -140,6 +165,38 @@ Retrieve full details of a transaction.
 - **URL**: `/transactions/{id}`
 - **Method**: `GET`
 - **Auth Required**: Yes (Cashier)
+
+#### Response (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Transaction retrieved",
+  "data": {
+    "id": "uuid",
+    "invoice_number": "INV/...",
+    "customer": {
+      "id": "uuid",
+      "name": "Budi Santoso"
+    },
+    "items": [
+      {
+        "product_name": "Kopi",
+        "quantity": 2,
+        "unit_price": 5000,
+        "total_amount": 10000
+      }
+    ],
+    "subtotal": 10000,
+    "discount_amount": 0,
+    "tax_amount": 0,
+    "total_amount": 10000,
+    "payment_method": "cash",
+    "amount_paid": 10000,
+    "change_amount": 0
+  }
+}
+```
 
 ### 5. Cancel Transaction
 

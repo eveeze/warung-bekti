@@ -49,6 +49,7 @@ Retrieve a paginated list of products with optional filtering.
 | `per_page`        | `int`    | Items per page                  | 20      |
 | `search`          | `string` | Search by name, SKU, or barcode | -       |
 | `category_id`     | `uuid`   | Filter by category ID           | -       |
+| `consignor_id`    | `uuid`   | Filter by consignor ID          | -       |
 | `is_active`       | `bool`   | Filter by active status         | true    |
 | `is_stock_active` | `bool`   | Filter by stock active status   | -       |
 | `low_stock_only`  | `bool`   | Filter for low stock items      | false   |
@@ -69,6 +70,7 @@ Retrieve a paginated list of products with optional filtering.
       "sku": "SKU-123",
       "description": "...",
       "category_id": "uuid",
+      "consignor_id": "uuid (optional)",
       "unit": "pcs",
       "base_price": 10000,
       "cost_price": 8000,
@@ -98,6 +100,7 @@ Create a new product (Admin only).
 "sku": "SKU-NEW", // Optional
 "description": "Product Description", // Optional
 "category_id": "uuid", // Optional
+"consignor_id": "uuid", // Optional (for Consignment items)
 "unit": "pcs",
 "base_price": 15000,
 "cost_price": 12000,

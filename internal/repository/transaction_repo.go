@@ -78,23 +78,33 @@ func (r *TransactionRepository) Create(ctx context.Context, tx *sql.Tx, transact
 // GetByID retrieves a transaction by ID with items
 func (r *TransactionRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Transaction, error) {
 	query := `
-		SELECT id, invoice_number, customer_id, subtotal, discount_amount, tax_amount,
-			total_amount, payment_method, amount_paid, change_amount, status, notes, cashier_name,
-			created_at, updated_at
-		FROM transactions WHERE id = $1
+		SELECT t.id, t.invoice_number, t.customer_id, t.subtotal, t.discount_amount, t.tax_amount,
+			t.total_amount, t.payment_method, t.amount_paid, t.change_amount, t.status, t.notes, t.cashier_name,
+			t.created_at, t.updated_at, c.name
+		FROM transactions t
+		LEFT JOIN customers c ON t.customer_id = c.id
+		WHERE t.id = $1
 	`
 
 	var t domain.Transaction
+	var customerName *string
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&t.ID, &t.InvoiceNumber, &t.CustomerID, &t.Subtotal, &t.DiscountAmount,
 		&t.TaxAmount, &t.TotalAmount, &t.PaymentMethod, &t.AmountPaid, &t.ChangeAmount,
-		&t.Status, &t.Notes, &t.CashierName, &t.CreatedAt, &t.UpdatedAt,
+		&t.Status, &t.Notes, &t.CashierName, &t.CreatedAt, &t.UpdatedAt, &customerName,
 	)
 	if err == sql.ErrNoRows {
 		return nil, domain.ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction: %w", err)
+	}
+
+	if t.CustomerID != nil && customerName != nil {
+		t.Customer = &domain.Customer{
+			ID:   *t.CustomerID,
+			Name: *customerName,
+		}
 	}
 
 	t.Items, _ = r.GetItems(ctx, t.ID)
@@ -138,28 +148,35 @@ func (r *TransactionRepository) List(ctx context.Context, filter domain.Transact
 	var args []interface{}
 	argIndex := 1
 
+	if filter.Search != nil {
+		conditions = append(conditions, fmt.Sprintf("(t.invoice_number ILIKE $%d OR c.name ILIKE $%d)", argIndex, argIndex))
+		searchPattern := "%" + *filter.Search + "%"
+		args = append(args, searchPattern)
+		argIndex++
+	}
+
 	if filter.CustomerID != nil {
-		conditions = append(conditions, fmt.Sprintf("customer_id = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("t.customer_id = $%d", argIndex))
 		args = append(args, *filter.CustomerID)
 		argIndex++
 	}
 	if filter.Status != nil {
-		conditions = append(conditions, fmt.Sprintf("status = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("t.status = $%d", argIndex))
 		args = append(args, *filter.Status)
 		argIndex++
 	}
 	if filter.PaymentMethod != nil {
-		conditions = append(conditions, fmt.Sprintf("payment_method = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("t.payment_method = $%d", argIndex))
 		args = append(args, *filter.PaymentMethod)
 		argIndex++
 	}
 	if filter.DateFrom != nil {
-		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("t.created_at >= $%d", argIndex))
 		args = append(args, *filter.DateFrom)
 		argIndex++
 	}
 	if filter.DateTo != nil {
-		conditions = append(conditions, fmt.Sprintf("created_at <= $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("t.created_at <= $%d", argIndex))
 		args = append(args, *filter.DateTo)
 		argIndex++
 	}
@@ -170,7 +187,11 @@ func (r *TransactionRepository) List(ctx context.Context, filter domain.Transact
 	}
 
 	var total int64
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM transactions %s", whereClause)
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) FROM transactions t 
+		LEFT JOIN customers c ON t.customer_id = c.id
+		%s
+	`, whereClause)
 	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -184,10 +205,12 @@ func (r *TransactionRepository) List(ctx context.Context, filter domain.Transact
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, invoice_number, customer_id, subtotal, discount_amount, tax_amount,
-			total_amount, payment_method, amount_paid, change_amount, status, notes, cashier_name,
-			created_at, updated_at
-		FROM transactions %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d
+		SELECT t.id, t.invoice_number, t.customer_id, t.subtotal, t.discount_amount, t.tax_amount,
+			t.total_amount, t.payment_method, t.amount_paid, t.change_amount, t.status, t.notes, t.cashier_name,
+			t.created_at, t.updated_at, c.name
+		FROM transactions t
+		LEFT JOIN customers c ON t.customer_id = c.id
+		%s ORDER BY t.created_at DESC LIMIT $%d OFFSET $%d
 	`, whereClause, argIndex, argIndex+1)
 
 	args = append(args, perPage, (page-1)*perPage)
@@ -201,12 +224,19 @@ func (r *TransactionRepository) List(ctx context.Context, filter domain.Transact
 	var transactions []domain.Transaction
 	for rows.Next() {
 		var t domain.Transaction
+		var customerName *string
 		if err := rows.Scan(
 			&t.ID, &t.InvoiceNumber, &t.CustomerID, &t.Subtotal, &t.DiscountAmount,
 			&t.TaxAmount, &t.TotalAmount, &t.PaymentMethod, &t.AmountPaid, &t.ChangeAmount,
-			&t.Status, &t.Notes, &t.CashierName, &t.CreatedAt, &t.UpdatedAt,
+			&t.Status, &t.Notes, &t.CashierName, &t.CreatedAt, &t.UpdatedAt, &customerName,
 		); err != nil {
 			return nil, 0, err
+		}
+		if t.CustomerID != nil && customerName != nil {
+			t.Customer = &domain.Customer{
+				ID:   *t.CustomerID,
+				Name: *customerName,
+			}
 		}
 		transactions = append(transactions, t)
 	}
