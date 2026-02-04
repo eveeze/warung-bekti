@@ -11,8 +11,12 @@ import (
 
 	"github.com/eveeze/warung-backend/internal/config"
 	"github.com/eveeze/warung-backend/internal/database"
+	"github.com/eveeze/warung-backend/internal/integration/onesignal"
 	"github.com/eveeze/warung-backend/internal/pkg/logger"
+	"github.com/eveeze/warung-backend/internal/platform/queue"
+	"github.com/eveeze/warung-backend/internal/repository"
 	"github.com/eveeze/warung-backend/internal/router"
+	"github.com/eveeze/warung-backend/internal/service"
 	"github.com/eveeze/warung-backend/internal/storage"
 	"github.com/joho/godotenv"
 )
@@ -159,6 +163,38 @@ func runServer() {
 		logger.Info("HTTP server listening on %s", cfg.Server.Address())
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("HTTP server error: %v", err)
+		}
+	}()
+
+	// Start Queue Server
+	// Initialize everything needed for workers
+	queueServer := queue.NewServer(cfg.Redis.Address(), cfg.Redis.Password, 10)
+	
+	// Re-initialize dependencies for workers (some might be reused from above if refactored, but here we rebuild or pass)
+	// Ideally we pass the same service instances. But router initializes them internally.
+	// We should probably move service initialization out of router.New and into main.go or a container struct.
+	// For now, let's just re-init what's needed for the worker handlers: NotificationService -> Repo -> DB.
+	
+	// Repos
+	notifRepo := repository.NewNotificationRepository(db)
+	
+	// Clients
+	qClient := queue.NewClient(cfg.Redis.Address(), cfg.Redis.Password)
+	osClient := onesignal.NewClient(cfg.OneSignal.AppID, cfg.OneSignal.APIKey)
+	
+	// Services
+	notifSvc := service.NewNotificationService(notifRepo, osClient, qClient)
+	// Note: We need TransactionService here if 'NewTransactionTask' needs it.
+	
+	// Register Handlers
+	queueServer.Handle(queue.TypeLowStockAlert, notifSvc.HandleLowStockTask)
+	queueServer.Handle(queue.TypeNewTransaction, notifSvc.HandleNewTransactionTask)
+	// queueServer.Handle(queue.TypeNotificationSend, ...) 
+
+	go func() {
+		logger.Info("Starting Queue Server...")
+		if err := queueServer.Run(); err != nil {
+			logger.Fatal("Queue server error: %v", err)
 		}
 	}()
 

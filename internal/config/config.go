@@ -15,6 +15,7 @@ type Config struct {
 	JWT      JWTConfig
 	App      AppConfig
 	Midtrans MidtransConfig
+	OneSignal OneSignalConfig
 }
 
 // ServerConfig holds HTTP server configuration
@@ -80,6 +81,12 @@ type MidtransConfig struct {
 	MerchantID  string
 }
 
+// OneSignalConfig holds OneSignal configuration
+type OneSignalConfig struct {
+	AppID  string
+	APIKey string
+}
+
 // Load loads configuration from environment variables
 func Load() *Config {
 	return &Config{
@@ -131,6 +138,10 @@ func Load() *Config {
 			ClientKey:   getEnv("MIDTRANS_CLIENT_KEY", ""),
 			Environment: getEnv("MIDTRANS_ENV", "sandbox"),
 			MerchantID:  getEnv("MIDTRANS_MERCHANT_ID", ""),
+		},
+		OneSignal: OneSignalConfig{
+			AppID:  getEnv("ONESIGNAL_APP_ID", ""),
+			APIKey: getEnv("ONESIGNAL_API_KEY", ""),
 		},
 	}
 }

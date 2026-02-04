@@ -7,7 +7,9 @@ import (
 	"github.com/eveeze/warung-backend/internal/config"
 	"github.com/eveeze/warung-backend/internal/database"
 	"github.com/eveeze/warung-backend/internal/handler"
+	"github.com/eveeze/warung-backend/internal/integration/onesignal"
 	"github.com/eveeze/warung-backend/internal/middleware"
+	"github.com/eveeze/warung-backend/internal/platform/queue"
 	"github.com/eveeze/warung-backend/internal/repository"
 	"github.com/eveeze/warung-backend/internal/service"
 	"github.com/eveeze/warung-backend/internal/storage"
@@ -38,9 +40,16 @@ func New(
 	refillableRepo := repository.NewRefillableRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 
+	// Initialize infrastructure
+	notificationRepo := repository.NewNotificationRepository(db)
+	queueClient := queue.NewClient(cfg.Redis.Address(), cfg.Redis.Password)
+	oneSignalClient := onesignal.NewClient(cfg.OneSignal.AppID, cfg.OneSignal.APIKey)
+
 	// Initialize services
+	notificationSvc := service.NewNotificationService(notificationRepo, oneSignalClient, queueClient)
+
 	transactionSvc := service.NewTransactionService(
-		db, transactionRepo, productRepo, customerRepo, kasbonRepo, inventoryRepo, refillableRepo,
+		db, transactionRepo, productRepo, customerRepo, kasbonRepo, inventoryRepo, refillableRepo, notificationSvc,
 	)
 	authSvc := service.NewAuthService(userRepo, cfg)
 	userSvc := service.NewUserService(userRepo) // New Service initialized
