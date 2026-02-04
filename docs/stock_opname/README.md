@@ -35,6 +35,12 @@ List all opname sessions.
 - **Method**: `GET`
 - **Auth Required**: Yes (Inventory)
 
+#### Query Parameters
+
+- `page`: Page number (default: 1)
+- `per_page`: Items per page (default: 20)
+- `status`: Filter by status (`draft`, `in_progress`, `completed`, `cancelled`)
+
 ### 2. Start Session
 
 Begin a new stock taking session.
@@ -169,3 +175,7 @@ List items nearing expiry (if batch tracking enabled).
 - **URL**: `/stock-opname/near-expiry`
 - **Method**: `GET`
 - **Auth Required**: Yes (Inventory)
+
+#### Query Parameters
+
+- `days`: Number of days to look ahead (default: 30)

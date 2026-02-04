@@ -40,7 +40,7 @@ func New(
 
 	// Initialize services
 	transactionSvc := service.NewTransactionService(
-		db, transactionRepo, productRepo, customerRepo, kasbonRepo, inventoryRepo,
+		db, transactionRepo, productRepo, customerRepo, kasbonRepo, inventoryRepo, refillableRepo,
 	)
 	authSvc := service.NewAuthService(userRepo, cfg)
 	userSvc := service.NewUserService(userRepo) // New Service initialized
@@ -228,6 +228,8 @@ func New(
 
 	// Refillables
 	mux.HandleFunc("GET "+apiPrefix+"/refillables", inventoryAccess(refillableHandler.GetContainers))
+	mux.HandleFunc("POST "+apiPrefix+"/refillables", inventoryAccess(refillableHandler.Create))
+	mux.HandleFunc("GET "+apiPrefix+"/refillables/{id}/movements", inventoryAccess(refillableHandler.GetMovements))
 	mux.HandleFunc("POST "+apiPrefix+"/refillables/adjust", inventoryAccess(refillableHandler.AdjustStock))
 
 	// Apply global middleware chain

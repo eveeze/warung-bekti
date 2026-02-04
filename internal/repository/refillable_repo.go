@@ -47,6 +47,18 @@ func (r *RefillableRepository) GetContainers(ctx context.Context) ([]domain.Refi
 		containers = append(containers, c)
 	}
 	return containers, nil
+	return containers, nil
+}
+
+func (r *RefillableRepository) Create(ctx context.Context, container *domain.RefillableContainer) error {
+	query := `
+		INSERT INTO refillable_containers (product_id, container_type, empty_count, full_count, notes)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, created_at, updated_at
+	`
+	return r.db.QueryRowContext(ctx, query,
+		container.ProductID, container.ContainerType, container.EmptyCount, container.FullCount, container.Notes,
+	).Scan(&container.ID, &container.CreatedAt, &container.UpdatedAt)
 }
 
 func (r *RefillableRepository) UpdateContainerStock(ctx context.Context, tx *sql.Tx, containerID uuid.UUID, emptyChange, fullChange int) error {
@@ -101,4 +113,58 @@ func (r *RefillableRepository) RecordMovement(ctx context.Context, tx *sql.Tx, m
 		m.ContainerID, m.Type, m.EmptyChange, m.FullChange, m.EmptyBefore, m.EmptyAfter, m.FullBefore, m.FullAfter,
 		m.ReferenceType, m.ReferenceID, m.Notes, m.CreatedBy,
 	).Scan(&m.ID, &m.CreatedAt)
+}
+
+func (r *RefillableRepository) GetMovements(ctx context.Context, containerID uuid.UUID, limit, offset int) ([]domain.ContainerMovement, int64, error) {
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM container_movements WHERE container_id = $1`
+	if err := r.db.QueryRowContext(ctx, countQuery, containerID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT id, container_id, type, empty_change, full_change, empty_before, empty_after,
+		       full_before, full_after, reference_type, reference_id, notes, created_by, created_at
+		FROM container_movements
+		WHERE container_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := r.db.QueryContext(ctx, query, containerID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var movements []domain.ContainerMovement
+	for rows.Next() {
+		var m domain.ContainerMovement
+		if err := rows.Scan(
+			&m.ID, &m.ContainerID, &m.Type, &m.EmptyChange, &m.FullChange,
+			&m.EmptyBefore, &m.EmptyAfter, &m.FullBefore, &m.FullAfter,
+			&m.ReferenceType, &m.ReferenceID, &m.Notes, &m.CreatedBy, &m.CreatedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		movements = append(movements, m)
+	}
+	return movements, total, nil
+}
+
+func (r *RefillableRepository) GetByProductID(ctx context.Context, productID uuid.UUID) (*domain.RefillableContainer, error) {
+	query := `
+		SELECT id, product_id, container_type, empty_count, full_count, notes, created_at, updated_at
+		FROM refillable_containers WHERE product_id = $1
+	`
+	var c domain.RefillableContainer
+	err := r.db.QueryRowContext(ctx, query, productID).Scan(
+		&c.ID, &c.ProductID, &c.ContainerType, &c.EmptyCount, &c.FullCount, &c.Notes, &c.CreatedAt, &c.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil // Not found is okay, just means not refillable
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
 }

@@ -20,6 +20,7 @@ type TransactionService struct {
 	customerRepo    *repository.CustomerRepository
 	kasbonRepo      *repository.KasbonRepository
 	inventoryRepo   *repository.InventoryRepository
+	refillableRepo  *repository.RefillableRepository
 }
 
 // NewTransactionService creates a new TransactionService
@@ -30,6 +31,7 @@ func NewTransactionService(
 	customerRepo *repository.CustomerRepository,
 	kasbonRepo *repository.KasbonRepository,
 	inventoryRepo *repository.InventoryRepository,
+	refillableRepo *repository.RefillableRepository,
 ) *TransactionService {
 	return &TransactionService{
 		db:              db,
@@ -38,6 +40,7 @@ func NewTransactionService(
 		customerRepo:    customerRepo,
 		kasbonRepo:      kasbonRepo,
 		inventoryRepo:   inventoryRepo,
+		refillableRepo:  refillableRepo,
 	}
 }
 
@@ -129,6 +132,7 @@ func (s *TransactionService) CreateTransaction(ctx context.Context, input domain
 		}
 
 		var subtotal int64
+		var refillableMovements []*domain.ContainerMovement
 
 		// Process each item
 		for _, itemInput := range input.Items {
@@ -179,6 +183,38 @@ func (s *TransactionService) CreateTransaction(ctx context.Context, input domain
 			if err := s.inventoryRepo.DeductStock(ctx, tx, product.ID, uuid.Nil, itemInput.Quantity, input.CashierName); err != nil {
 				return err
 			}
+
+			// Check if Refillable
+			container, err := s.refillableRepo.GetByProductID(ctx, product.ID)
+			if err != nil {
+				// Log error but don't fail transaction? Or fail? 
+				// Better to fail if consistency is key.
+				return fmt.Errorf("failed to check refillable: %w", err)
+			}
+			if container != nil {
+				// Swap logic: Full -Qty, Empty +Qty
+				emptyChange := itemInput.Quantity
+				fullChange := -itemInput.Quantity
+				
+				if err := s.refillableRepo.UpdateContainerStock(ctx, tx, container.ID, emptyChange, fullChange); err != nil {
+					return fmt.Errorf("failed to update container stock: %w", err)
+				}
+				
+				refType := "transaction"
+				notes := "Sold via POS"
+
+				movement := &domain.ContainerMovement{
+					ContainerID:   container.ID,
+					Type:          domain.ContainerMovementSaleExchange, // Fix: Use correct Enum
+					EmptyChange:   emptyChange,
+					FullChange:    fullChange,
+					ReferenceType: &refType,
+					CreatedBy:     input.CashierName,
+					Notes:         &notes,
+				}
+				
+				refillableMovements = append(refillableMovements, movement)
+			}
 		}
 
 		transaction.Subtotal = subtotal
@@ -216,6 +252,14 @@ func (s *TransactionService) CreateTransaction(ctx context.Context, input domain
 			_, err := s.kasbonRepo.CreateDebt(ctx, tx, *input.CustomerID, &transaction.ID, transaction.TotalAmount, input.Notes, input.CashierName)
 			if err != nil {
 				return err
+			}
+		}
+
+		// Record refillable movements now that we have Transaction ID
+		for _, m := range refillableMovements {
+			m.ReferenceID = &transaction.ID
+			if err := s.refillableRepo.RecordMovement(ctx, tx, m); err != nil {
+				return fmt.Errorf("failed to record container movement: %w", err)
 			}
 		}
 

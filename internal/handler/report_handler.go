@@ -31,15 +31,24 @@ func NewReportHandler(
 	}
 }
 
-// DailyReport represents daily sales report
-type DailyReport struct {
-	Date             string `json:"date"`
-	TotalSales       int64  `json:"total_sales"`
-	TotalTransactions int   `json:"total_transactions"`
-	EstimatedProfit  int64  `json:"estimated_profit"`
+// DailyReportSummary represents summary metrics
+type DailyReportSummary struct {
+	Date               string `json:"date"`
+	TotalSales         int64  `json:"total_sales"`
+	TotalTransactions  int    `json:"total_transactions"`
+	EstimatedProfit    int64  `json:"estimated_profit"`
+	AverageTransaction int64  `json:"average_transaction"`
+	TotalProfit        int64  `json:"total_profit"`
 }
 
-// GetDailyReport returns daily sales summary
+// DailyReportResponse represents the full daily report response
+type DailyReportResponse struct {
+	Summary      DailyReportSummary       `json:"summary"`
+	HourlySales  []map[string]interface{} `json:"hourly_sales"`
+	TopProducts  []map[string]interface{} `json:"top_products"`
+}
+
+// GetDailyReport returns daily sales summary with details
 func (h *ReportHandler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 	dateStr := r.URL.Query().Get("date")
 	if dateStr == "" {
@@ -57,11 +66,32 @@ func (h *ReportHandler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 		profit = 0
 	}
 
-	report := DailyReport{
-		Date:              dateStr,
-		TotalSales:        sales,
-		TotalTransactions: count,
-		EstimatedProfit:   profit,
+	hourly, err := h.transactionRepo.GetHourlySales(r.Context(), dateStr)
+	if err != nil {
+		hourly = []map[string]interface{}{}
+	}
+
+	topProducts, err := h.transactionRepo.GetTopProducts(r.Context(), dateStr, 5)
+	if err != nil {
+		topProducts = []map[string]interface{}{}
+	}
+
+	avgTransaction := int64(0)
+	if count > 0 {
+		avgTransaction = sales / int64(count)
+	}
+
+	report := DailyReportResponse{
+		Summary: DailyReportSummary{
+			Date:               dateStr,
+			TotalSales:         sales,
+			TotalTransactions:  count,
+			EstimatedProfit:    profit,
+			AverageTransaction: avgTransaction,
+			TotalProfit:        profit,
+		},
+		HourlySales: hourly,
+		TopProducts: topProducts,
 	}
 
 	response.OK(w, "Daily report retrieved", report)
@@ -94,10 +124,10 @@ func (h *ReportHandler) GetInventoryReport(w http.ResponseWriter, r *http.Reques
 
 // Dashboard represents dashboard summary
 type Dashboard struct {
-	Today           DailyReport `json:"today"`
-	TotalOutstanding int64      `json:"total_outstanding_kasbon"`
-	LowStockCount   int         `json:"low_stock_count"`
-	OutOfStockCount int         `json:"out_of_stock_count"`
+	Today           DailyReportSummary `json:"today"`
+	TotalOutstanding int64             `json:"total_outstanding_kasbon"`
+	LowStockCount   int                `json:"low_stock_count"`
+	OutOfStockCount int                `json:"out_of_stock_count"`
 }
 
 // GetDashboard returns dashboard summary
@@ -110,12 +140,19 @@ func (h *ReportHandler) GetDashboard(w http.ResponseWriter, r *http.Request) {
 	kasbonReport, _ := h.kasbonRepo.GetReport(r.Context())
 	stockReport, _ := h.inventoryRepo.GetStockReport(r.Context())
 
+	avgTransaction := int64(0)
+	if count > 0 {
+		avgTransaction = sales / int64(count)
+	}
+
 	dashboard := Dashboard{
-		Today: DailyReport{
-			Date:              today,
-			TotalSales:        sales,
-			TotalTransactions: count,
-			EstimatedProfit:   profit,
+		Today: DailyReportSummary{
+			Date:               today,
+			TotalSales:         sales,
+			TotalTransactions:  count,
+			EstimatedProfit:    profit,
+			AverageTransaction: avgTransaction,
+			TotalProfit:        profit,
 		},
 	}
 

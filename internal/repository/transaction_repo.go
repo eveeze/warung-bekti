@@ -275,3 +275,75 @@ func (r *TransactionRepository) GetDailyProfit(ctx context.Context, date string)
 	err := r.db.QueryRowContext(ctx, query, date).Scan(&profit)
 	return profit, err
 }
+
+// GetHourlySales returns sales grouped by hour for a specific date
+func (r *TransactionRepository) GetHourlySales(ctx context.Context, date string) ([]map[string]interface{}, error) {
+	query := `
+		SELECT EXTRACT(HOUR FROM created_at) as hour, 
+		       COALESCE(SUM(total_amount), 0) as sales, 
+		       COUNT(*) as transactions
+		FROM transactions 
+		WHERE DATE(created_at) = $1 AND status = 'completed'
+		GROUP BY hour
+		ORDER BY hour ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []map[string]interface{}
+	for rows.Next() {
+		var hour float64
+		var sales int64
+		var count int
+		if err := rows.Scan(&hour, &sales, &count); err != nil {
+			continue
+		}
+		result = append(result, map[string]interface{}{
+			"hour":         int(hour),
+			"sales":        sales,
+			"transactions": count,
+		})
+	}
+	return result, nil
+}
+
+// GetTopProducts returns top selling products by sales amount
+func (r *TransactionRepository) GetTopProducts(ctx context.Context, date string, limit int) ([]map[string]interface{}, error) {
+	query := `
+		SELECT ti.product_id, ti.product_name, 
+		       SUM(ti.quantity) as total_quantity, 
+		       SUM(ti.total_amount) as total_sales
+		FROM transaction_items ti
+		JOIN transactions t ON t.id = ti.transaction_id
+		WHERE DATE(t.created_at) = $1 AND t.status = 'completed'
+		GROUP BY ti.product_id, ti.product_name
+		ORDER BY total_sales DESC
+		LIMIT $2
+	`
+	rows, err := r.db.QueryContext(ctx, query, date, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []map[string]interface{}
+	for rows.Next() {
+		var productID uuid.UUID
+		var productName string
+		var qty int
+		var sales int64
+		if err := rows.Scan(&productID, &productName, &qty, &sales); err != nil {
+			continue
+		}
+		result = append(result, map[string]interface{}{
+			"product_id":     productID,
+			"product_name":   productName,
+			"total_quantity": qty,
+			"total_sales":    sales,
+		})
+	}
+	return result, nil
+}

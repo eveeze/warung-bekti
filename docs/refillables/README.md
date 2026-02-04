@@ -54,7 +54,39 @@ View status of refillable containers (galon, gas).
 }
 ```
 
-### 2. Adjust Stock
+````
+
+### 2. Create Container
+
+Initialize a new refillable type mapping.
+
+- **URL**: `/refillables`
+- **Method**: `POST`
+- **Auth Required**: Yes (Inventory)
+
+#### Request Body
+
+```json
+{
+  "product_id": "uuid",
+  "container_type": "Galon Aqua",
+  "empty_count": 0,
+  "full_count": 0,
+  "notes": "Initial stock"
+}
+````
+
+#### Response (201 Created)
+
+```json
+{
+  "success": true,
+  "message": "Container created",
+  "data": { "id": "uuid", ... }
+}
+```
+
+### 3. Adjust Stock
 
 Manual adjustment for container counts.
 

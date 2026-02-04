@@ -83,7 +83,17 @@ View all active held carts.
 - **Method**: `GET`
 - **Auth Required**: Yes (Cashier)
 
-### 3. Resume Cart
+- **Auth Required**: Yes (Cashier)
+
+### 3. Get Held Cart Detail
+
+View details of a specific held cart.
+
+- **URL**: `/pos/held-carts/{id}`
+- **Method**: `GET`
+- **Auth Required**: Yes (Cashier)
+
+### 4. Resume Cart
 
 Retrieve and reactivate a held cart.
 

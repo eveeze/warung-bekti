@@ -50,10 +50,23 @@ Get sales summary for a specific date (default today).
   "success": true,
   "message": "Daily report retrieved",
   "data": {
-    "date": "2023-10-01",
-    "total_sales": 500000,
-    "total_transactions": 25,
-    "estimated_profit": 150000
+    "summary": {
+      "date": "2023-10-01",
+      "total_sales": 500000,
+      "total_transactions": 25,
+      "estimated_profit": 150000,
+      "average_transaction": 20000,
+      "total_profit": 150000
+    },
+    "hourly_sales": [
+      { "hour": 9, "sales": 100000, "transactions": 5 },
+      { "hour": 10, "sales": 50000, "transactions": 2 }
+    ],
+    "top_products": [
+      {
+        "product_id": "uuid",
+        "product_name": "Kopi Susu",
+    }
   }
 }
 ```

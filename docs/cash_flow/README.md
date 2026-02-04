@@ -137,3 +137,12 @@ View history of cash movements.
 - **URL**: `/cashflow`
 - **Method**: `GET`
 - **Auth Required**: Yes (Cashier)
+
+#### Query Parameters
+
+- `page`: Page number (default: 1)
+- `per_page`: Items per page (default: 20)
+- `session_id`: Filter by drawer session ID
+- `category_id`: Filter by category ID
+- `type`: Filter by type (`income` or `expense`)
+- `date_from`: Filter by date (RFC3339 format)
