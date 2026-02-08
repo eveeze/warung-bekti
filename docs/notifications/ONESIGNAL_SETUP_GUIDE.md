@@ -51,7 +51,7 @@ Lakukan ini untuk mendapatkan `App ID` dan `Rest API Key`.
     - Buka file `.env` di backend Go Anda.
     - Isi kedua nilai:
       ```env
-      ONESIGNAL_APP_ID=090dea92-b9c1-4417-8a6c-221262071ce7
+      ONESIGNAL_APP_ID=
       ONESIGNAL_API_KEY=PASTE_REST_API_KEY_DISINI
       ```
 

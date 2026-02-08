@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	"github.com/eveeze/warung-backend/internal/config"
 	"github.com/eveeze/warung-backend/internal/domain"
@@ -97,4 +98,17 @@ func GetUserFromContext(ctx context.Context) *domain.UserClaims {
 		return nil
 	}
 	return claims
+}
+
+// GetUserID retrieves user ID from context
+func GetUserID(ctx context.Context) (uuid.UUID, bool) {
+	claims := GetUserFromContext(ctx)
+	if claims == nil {
+		return uuid.Nil, false
+	}
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return uuid.Nil, false
+	}
+	return userID, true
 }

@@ -1,90 +1,210 @@
-# Notification System
+# Notifications API
 
-The Notification System handles asynchronous background tasks and user alerts (push notifications, email, etc.) using a reliable queue-based architecture.
+Endpoint untuk mengelola notifikasi push dan riwayat notifikasi pengguna.
 
-## Architecture
+## Base URL
 
-We use **[hibiken/asynq](https://github.com/hibiken/asynq)** for the job queue system, backed by **Redis**. This ensures task persistence and reliability across server restarts.
-
-### Components
-
-1.  **Queue Client (`internal/platform/queue/client.go`)**:
-    - Used by services (e.g., `TransactionService`) to enqueue tasks.
-    - Responsbile for serializing payloads.
-
-2.  **Queue Server (`internal/platform/queue/server.go`)**:
-    - Runs in the background (started in `main.go`).
-    - Consumes tasks from Redis and executes registered handlers.
-    - Handles retries and concurrency.
-
-3.  **Notification Service (`internal/service/notification_svc.go`)**:
-    - Core business logic for handling notification tasks.
-    - Integrates with `OneSignal` for external push notifications.
-    - Saves notification history to the PostgreSQL database (`notifications` table).
-
-4.  **OneSignal Client (`internal/integration/onesignal/client.go`)**:
-    - Wrapper for the OneSignal REST API.
-
-## Configuration
-
-The system requires the following environment variables in `.env`:
-
-```env
-# Redis (Required for Queue)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-# OneSignal (Optional - for Push Notifications)
-ONESIGNAL_APP_ID=your-app-id
-ONESIGNAL_API_KEY=your-api-key
+```
+/api/v1/notifications
 ```
 
-## Supported Tasks
+## Authentication
 
-### 1. Low Stock Alert (`notification:low_stock`)
+Semua endpoint memerlukan **Bearer Token** di header:
 
-- **Trigger**: When a transaction reduces a product's stock below its `min_stock_alert` threshold.
-- **Action**:
-  - Saves a "system" notification to the DB.
-  - Sends a push notification via OneSignal (if configured).
-
-### 2. New Transaction (`notification:new_transaction`)
-
-- **Trigger**: When a transaction is successfully completed.
-- **Action**: (Currently logs the transaction, extendable to admin alerts).
-
-## Usage
-
-### Enqueuing a Task
-
-In your service, inject `*queue.Client` or `*service.NotificationService`.
-
-```go
-// Direct Queue Enqueue
-client.EnqueueLowStockAlert(queue.PayloadLowStock{...})
-
-// OR via Service (Preferred wrapper)
-notificationSvc.EnqueueLowStock(productID, name, currentStock, minStock)
+```
+Authorization: Bearer <access_token>
 ```
 
-### Retrieving Notifications
+---
 
-Use the HTTP API to fetch notification history for users.
+## Endpoints
 
-**Endpoint**: `GET /api/v1/notifications` (Not yet exposed publicly, need to add handler if frontend needs it)
+### 1. Get Notifications
 
-## Database Schema
+Mengambil riwayat notifikasi untuk user yang sedang login.
 
-```sql
-CREATE TABLE notifications (
-    id UUID PRIMARY KEY,
-    user_id UUID, -- NULL for system/global
-    title VARCHAR(255),
-    message TEXT,
-    type VARCHAR(50),
-    data JSONB,
-    is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP
-);
+**Endpoint:** `GET /api/v1/notifications`
+
+**Query Parameters:**
+
+- `limit` (optional, default: 20, max: 100): Jumlah notifikasi per halaman
+- `offset` (optional, default: 0): Offset untuk pagination
+
+**Response Success (200):**
+
+```json
+{
+  "success": true,
+  "message": "Notifications retrieved",
+  "data": {
+    "notifications": [
+      {
+        "id": "uuid",
+        "user_id": "uuid",
+        "title": "Low Stock Alert",
+        "message": "Product Indomie is running low (4 left). Reorder soon!",
+        "type": "low_stock",
+        "data": {
+          "product_id": "uuid",
+          "current_stock": 4
+        },
+        "is_read": false,
+        "created_at": "2026-02-04T16:20:24Z"
+      }
+    ],
+    "limit": 20,
+    "offset": 0
+  }
+}
+```
+
+**Notification Types:**
+
+- `low_stock`: Notifikasi stok rendah
+- `new_transaction`: Notifikasi transaksi baru
+- `system`: Notifikasi sistem lainnya
+
+---
+
+### 2. Mark Notification as Read
+
+Menandai satu notifikasi sebagai sudah dibaca.
+
+**Endpoint:** `PATCH /api/v1/notifications/:id/read`
+
+**Path Parameters:**
+
+- `id` (required): UUID notifikasi
+
+**Response Success (200):**
+
+```json
+{
+  "success": true,
+  "message": "Notification marked as read",
+  "data": null
+}
+```
+
+**Response Error (400):**
+
+```json
+{
+  "success": false,
+  "message": "Invalid notification ID"
+}
+```
+
+---
+
+### 3. Mark All as Read
+
+Menandai semua notifikasi user sebagai sudah dibaca.
+
+**Endpoint:** `PATCH /api/v1/notifications/read-all`
+
+**Response Success (200):**
+
+```json
+{
+  "success": true,
+  "message": "All notifications marked as read",
+  "data": null
+}
+```
+
+---
+
+## Frontend Integration Example
+
+### Fetch Notifications
+
+```typescript
+const fetchNotifications = async (limit = 20, offset = 0) => {
+  const response = await fetch(
+    `/api/v1/notifications?limit=${limit}&offset=${offset}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+  return response.json();
+};
+```
+
+### Mark as Read
+
+```typescript
+const markAsRead = async (notificationId: string) => {
+  await fetch(`/api/v1/notifications/${notificationId}/read`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+};
+```
+
+### Mark All as Read
+
+```typescript
+const markAllAsRead = async () => {
+  await fetch('/api/v1/notifications/read-all', {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+};
+```
+
+---
+
+## React Native Integration
+
+### Using with OneSignal
+
+Kombinasikan dengan OneSignal untuk real-time push notification:
+
+1. **Receive Push** → OneSignal mengirim ke device
+2. **User Click** → App membuka halaman detail
+3. **Fetch History** → Call `GET /notifications` untuk history
+4. **Mark as Read** → Call `PATCH /notifications/:id/read`
+
+### Example Component
+
+```tsx
+import { useEffect, useState } from 'react';
+import { OneSignal } from 'react-native-onesignal';
+
+export function NotificationsScreen() {
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    // Fetch notification history
+    fetchNotifications().then(setNotifications);
+
+    // Listen for new push notifications
+    const listener = OneSignal.Notifications.addEventListener('click', (event) => {
+      // Refresh notification list when user clicks push
+      fetchNotifications().then(setNotifications);
+    });
+
+    return () => {
+      OneSignal.Notifications.removeEventListener('click', listener);
+    };
+  }, []);
+
+  const handleMarkAsRead = async (id: string) => {
+    await markAsRead(id);
+    // Refresh list
+    fetchNotifications().then(setNotifications);
+  };
+
+  return (
+    // Your UI here
+  );
+}
 ```

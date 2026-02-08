@@ -83,6 +83,7 @@ func New(
 	refillableHandler := handler.NewRefillableHandler(refillableSvc)
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
 	eventHandler := handler.NewEventHandler(eventSvc)
+	notificationHandler := handler.NewNotificationHandler(notificationSvc)
 
 	// Health check routes (Public)
 	mux.HandleFunc("GET /health", healthHandler.Health)
@@ -195,6 +196,11 @@ func New(
 	mux.HandleFunc("GET "+apiPrefix+"/reports/kasbon", adminOnly(reportHandler.GetKasbonReport))
 	mux.HandleFunc("GET "+apiPrefix+"/reports/inventory", adminOnly(reportHandler.GetInventoryReport))
 	mux.HandleFunc("GET "+apiPrefix+"/reports/dashboard", adminOnly(reportHandler.GetDashboard))
+
+	// Notifications
+	mux.HandleFunc("GET "+apiPrefix+"/notifications", protected(notificationHandler.GetNotifications))
+	mux.HandleFunc("PATCH "+apiPrefix+"/notifications/{id}/read", protected(notificationHandler.MarkAsRead))
+	mux.HandleFunc("PATCH "+apiPrefix+"/notifications/read-all", protected(notificationHandler.MarkAllAsRead))
 
 	// Payments
 	mux.HandleFunc("POST "+apiPrefix+"/payments/snap", cashierAccess(paymentHandler.GenerateSnapToken))

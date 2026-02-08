@@ -99,3 +99,13 @@ func (s *NotificationService) HandleNewTransactionTask(ctx context.Context, t *a
 func (s *NotificationService) GetUserNotifications(ctx context.Context, userID uuid.UUID, limit, offset int) ([]repository.Notification, error) {
 	return s.repo.GetByUserID(ctx, userID, limit, offset)
 }
+
+// MarkAsRead marks a notification as read
+func (s *NotificationService) MarkAsRead(ctx context.Context, notificationID uuid.UUID) error {
+	return s.repo.MarkAsRead(ctx, notificationID)
+}
+
+// MarkAllAsRead marks all notifications for a user as read
+func (s *NotificationService) MarkAllAsRead(ctx context.Context, userID uuid.UUID) error {
+	return s.repo.MarkAllAsRead(ctx, userID)
+}
