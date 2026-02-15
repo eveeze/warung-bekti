@@ -50,3 +50,12 @@ __debug_bin
 # Data Seeding
 ipos_data.xlsx
 *.xls
+
+# Deployment & Backup
+backup_warung.sql
+startup.sh
+bin/
+docker/Dockerfile.release
+*.sql
+*.zip
+warung-api

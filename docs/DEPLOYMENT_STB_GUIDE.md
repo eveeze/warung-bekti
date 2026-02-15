@@ -1,10 +1,8 @@
 # 📦 Step-by-Step Implementation Guide: Deploy Backend POS "Warung Bekti" ke STB HG680P
 
-> **Hardware**: STB HG680P (RAM 2GB, Internal 8GB) + MicroSD Class 10 (Min. 32GB, High Endurance recommended)
+> **Hardware**: STB HG680P (RAM 2GB, Internal 8GB) + SSD External (Partitioned/Formatted)
 > **OS**: Armbian Server (Debian/Ubuntu based)
 > **Stack**: Golang + PostgreSQL + Redis + Asynq + OneSignal
-
-> **Note**: Penggunaan SD Card dipilih karena port USB STB sering tidak kuat mengangkat SSD eksternal (error -110/-62). Gunakan SD Card berkualitas tinggi (High Endurance/Industrial) agar awet.
 
 ---
 
@@ -18,71 +16,126 @@
 
 ---
 
-## Bab 1: Persiapan Storage (MicroSD)
+## Bab 1: Persiapan Storage (SSD Partitioned)
 
-### 1.1 Identifikasi SD Card
+### 1.1 Identifikasi Partisi
 
-Masukkan SD Card, lalu cek device:
+SSD Anda terdeteksi sebagai `/dev/sda` dengan 3 partisi. Kemungkinan besar itu bekas install Windows atau Linux lain (sda1=boot/efi, sda2=root/data, sda3=swap/recovery).
+
+Cek detailnya:
 
 ```bash
 lsblk
-# Output contoh:
-# mmcblk1     179:0    0  29G  0 disk
-# └─mmcblk1p1 179:1    0  29G  0 part
+# Output Anda saat ini:
+# sda      8:0    0 120G  0 disk
+# ├─sda1   8:1    0 16M   0 part  (Kecil, abaikan)
+# ├─sda2   8:2    0 118G  0 part  (Data Utama - TARGET KITA)
+# └─sda3   8:3    0 1G    0 part  (Swap/Recovery)
 ```
 
-Usually SD Card terdeteksi sebagai `mmcblk1`. Pastikan bukan `mmcblk0` (ini biasanya internal eMMC).
+**Pilihan:**
 
-### 1.2 Format SD Card ke ext4
+1.  **Gunakan sda2 langsung** (jika isinya tidak penting atau ingin diformat ulang).
+2.  **Format Ulang Total** (disarankan agar bersih dan jadi 1 partisi penuh).
+
+### 1.2 Opsi A: Format Ulang Total (via `cfdisk` - LEBIH MUDAH)
+
+Kita gunakan **`cfdisk`** yang punya tampilan visual agar tidak salah hapus.
 
 ```bash
-# Unmount jika terpasang otomatis
-sudo umount /dev/mmcblk1p1
+# 1. Install cfdisk (biasanya sudah ada, bagian dari util-linux)
+sudo apt install util-linux -y
 
-# Format (HATI-HATI: data hilang)
-# -L warung-data: Label partisi
-sudo mkfs.ext4 -L warung-data /dev/mmcblk1p1
+# 2. Buka cfdisk untuk SSD (sda)
+sudo cfdisk /dev/sda
 ```
 
-### 1.3 Buat Mount Point & Mount Permanen
+**Panduan di dalam `cfdisk`:**
+
+1.  Gunakan panah **Atas/Bawah** untuk pilih partisi.
+2.  Pilih `[ Delete ]` (di menu bawah) untuk menghapus semua partisi `sda1`, `sda2`, `sda3` satu per satu sampai tersisa **Free space**.
+3.  Pilih `[ New ]` -> Enter (buat partisi baru full size).
+4.  Pilih `[ Write ]` -> ketik `yes` -> Enter (untuk simpan perubahan).
+5.  Pilih `[ Quit ]`.
+
+Sekarang cek lagi, harusnya cuma ada `sda1`:
 
 ```bash
-# Buat direktori
+lsblk
+```
+
+### 1.3 Format Ext4
+
+Format partisi baru tersebut (`sda1`) ke ext4:
+
+```bash
+sudo mkfs.ext4 -L warung-data /dev/sda1
+```
+
+### 1.4 Mount Permanen (Otomatis)
+
+Jalankan perintah ini untuk **otomatis** menambahkan konfigurasi ke `/etc/fstab` tanpa perlu ketik UUID manual:
+
+```bash
+# 1. Buat folder mount
 sudo mkdir -p /mnt/data-warung
 
-# Cari UUID
-sudo blkid /dev/mmcblk1p1
-# Output: /dev/mmcblk1p1: UUID="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" TYPE="ext4"
+# 2. Simpan UUID ke variabel & Append ke fstab (One-liner)
+UUID=$(sudo blkid -o value -s UUID /dev/sda1)
+echo "UUID=$UUID /mnt/data-warung ext4 defaults,noatime,nodiratime 0 2" | sudo tee -a /etc/fstab
 
-# Edit fstab
-sudo nano /etc/fstab
+# 3. Cek hasil (pastikan barisnya ada di paling bawah)
+cat /etc/fstab
 ```
 
-**Tambahkan baris berikut di `/etc/fstab`:**
-
-```
-UUID=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee /mnt/data-warung ext4 defaults,noatime,nodiratime,commit=600 0 2
-```
-
-> **Optimasi SD Card**:
->
-> - `noatime,nodiratime`: Jangan catat waktu akses file (mengurangi write).
-> - `commit=600`: Flush data ke disk tiap 10 menit (mengurangi write frequency, tapi risiko data loss 10 menit terakhir jika mati lampu).
-
-**Mount dan verifikasi:**
+**Mount dan Verifikasi:**
 
 ```bash
 sudo mount -a
 df -h /mnt/data-warung
+# Harusnya muncul /dev/sda1 mounting di /mnt/data-warung
 ```
+
+### 🔄 Troubleshooting: Reset / Undo Mount
+
+Jika Anda salah mount (misal `sda2`) dan ingin mengulangi dari awal:
+
+1.  **Unmount partisi:**
+
+    ```bash
+    sudo umount /mnt/data-warung
+    sudo umount /dev/sda2  # Sesuaikan dengan yang tadi dimount
+    ```
+
+2.  **Hapus config di fstab:**
+    Buka file fstab:
+
+    ```bash
+    sudo nano /etc/fstab
+    ```
+
+    Hapus baris paling bawah yang berisi `/mnt/data-warung`.
+    (Gunakan `Ctrl+K` untuk cut baris, lalu `Ctrl+X` -> `Y` -> `Enter` untuk save).
+
+3.  **Reload daemon:**
+    ```bash
+    sudo systemctl daemon-reload
+    ```
+
+Setelah ini, Anda aman untuk kembali ke langkah **1.2 Opsi A** (cfdisk).
 
 ### 1.4 Pindahkan Docker Data Root ke SSD
 
 Ini krusial agar image & container tidak memenuhi eMMC 8GB.
 
 ```bash
-# Stop Docker
+# Stop Docker Service & Socket (PENTING: Socket harus distop juga)
 sudo systemctl stop docker
+sudo systemctl stop docker.socket
+
+# Verifikasi docker benar-benar mati
+sudo systemctl status docker
+# Pastikan statusnya "inactive (dead)"
 
 # Buat direktori Docker di SSD
 sudo mkdir -p /mnt/data-warung/docker
@@ -164,78 +217,117 @@ sudo chown -R $USER:$USER /mnt/data-warung
 
 ### 2.3 Docker Compose untuk Production (STB Optimized)
 
-Buat file `/mnt/data-warung/docker-compose.yml`:
+File ini ada di repo### 3. Buat file `docker-compose.yml`
+
+⚠️ **PENTING UNTUK STB (HG680P/B860H)**:
+Karena kernel STB biasanya versi lama (3.14/4.9), kita **WAJIB** menggunakan settingan khusus agar container tidak crash (Segmentation Fault):
+
+1.  **Redis**: Gunakan versi `6.2` (Debian based), JANGAN `7-alpine`.
+2.  **Privileged Mode**: Aktifkan `privileged: true` untuk Redis & MinIO.
+3.  **Seccomp**: Matikan security profile dengan `security_opt: - seccomp:unconfined`.
+
+Gunakan konfigurasi berikut:
 
 ```yaml
 services:
-  # PostgreSQL Database - Volume di SD Card (Rekomendasi: High Endurance)
+  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: warung-postgres
     environment:
       POSTGRES_USER: warung
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-warung_secret_prod}
+      POSTGRES_PASSWORD: warung_secret
       POSTGRES_DB: warung_db
     volumes:
-      - /mnt/data-warung/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U warung -d warung_db']
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
-    # Tidak expose port ke host, hanya internal network
-    networks:
-      - warung-internal
 
-  # Redis - Optimasi untuk RAM 2GB
+  # Redis Cache (FIX STB KERNEL PANIC)
   redis:
-    image: redis:7-alpine
+    image: redis:6.2 # Wajib Debian based, Alpine sering crash di STB
     container_name: warung-redis
-    command: >
-      redis-server
-      --appendonly yes
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --save 900 1
-      --save 300 10
+    command: redis-server --appendonly yes
+    privileged: true # Wajib
+    security_opt:
+      - seccomp:unconfined
     volumes:
-      - /mnt/data-warung/redis:/data
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    # Healthcheck optional (sering timeout di STB)
+    restart: unless-stopped
+
+  # Minio Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: warung-minio
+    command: server /data --console-address ":9001"
+    privileged: true # Wajib
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - '9000:9000'
+      - '9001:9001'
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 3
     restart: unless-stopped
-    networks:
-      - warung-internal
 
-  # Warung Backend API
+  # WarungOS API
   api:
-    image: warung-api:latest
+    image: warung-api:latest # Gunakan image hasil load manual / build
+    # build: ... (Jangan build di STB jika disk unstable)
     container_name: warung-api
-    env_file:
-      - .env.production
+    environment:
+      - APP_ENV=production
+      - LOG_LEVEL=info
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=warung
+      - DB_PASSWORD=warung_secret
+      - DB_NAME=warung_db
+      - DB_SSL_MODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_USE_SSL=false
+      - MINIO_BUCKET_NAME=warung-assets
+      - JWT_SECRET=${JWT_SECRET}
+    ports:
+      - '8080:8080'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-    ports:
-      - '127.0.0.1:8080:8080' # Hanya localhost, akses via Cloudflare Tunnel
+        condition: service_started
     restart: unless-stopped
-    networks:
-      - warung-internal
-    deploy:
-      resources:
-        limits:
-          memory: 512M # Limit memory untuk stabilitas
-        reservations:
-          memory: 256M
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
 
 networks:
-  warung-internal:
-    driver: bridge
+  default:
+    name: warung-network
 ```
 
 ### 2.4 File Environment Production
@@ -320,7 +412,7 @@ cloudflared tunnel login
 
 # Buat tunnel baru
 cloudflared tunnel create warung-api
-
+47f87bf6-6854-4fcd-831a-a00f87758a8b
 # Output: Tunnel credentials written to /home/user/.cloudflared/xxxxxxxx.json
 # Catat TUNNEL_ID dari output
 ```
@@ -333,11 +425,12 @@ mkdir -p ~/.cloudflared
 nano ~/.cloudflared/config.yml
 ```
 
-**Isi `/home/user/.cloudflared/config.yml`:**
+**Isi `~/.cloudflared/config.yml`:**
+(Jika login sebagai root, path home adalah `/root/`. Jika user biasa, `/home/user/`)
 
 ```yaml
-tunnel: <TUNNEL_ID>
-credentials-file: /home/<user>/.cloudflared/<TUNNEL_ID>.json
+tunnel: 47f87bf6-6854-4fcd-831a-a00f87758a8b
+credentials-file: /root/.cloudflared/47f87bf6-6854-4fcd-831a-a00f87758a8b.json
 
 ingress:
   - hostname: api.warungmanto.store
@@ -372,7 +465,7 @@ sudo systemctl status cloudflared
 
 Tailscale digunakan untuk akses SSH dan remote database secara aman (private network).
 
-```bash
+````bash
 # Install Tailscale
 curl -fsSL https://tailscale.com/install.sh | sh
 
@@ -380,7 +473,38 @@ curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up
 
 # Output: URL untuk login, buka di browser
-```
+
+### 🔄 Troubleshooting: Tailscale Command Not Found
+
+Jika muncul error `sudo: tailscale: command not found` setelah install:
+
+1.  **Cek lokasi binary:**
+    ```bash
+    ls -l /usr/bin/tailscale
+    ls -l /usr/sbin/tailscale
+    ```
+
+2.  **Jalankan manual (jika ada di sbin):**
+    ```bash
+    sudo /usr/sbin/tailscale up
+    ```
+
+3.  **Install Manual via APT (Solusi Pasti):**
+
+    > **PENTING**: Cek versi OS Anda dengan `lsb_release -cs`.
+    > Jika outputnya **noble**, **jammy**, atau **focal**, berarti Anda pakai **Ubuntu**, bukan Debian.
+
+    Jika Anda mengalami error `Unable to locate package` atau `Release file missing`, kemungkinan salah pilih repo (Debian vs Ubuntu).
+
+    Silakan buka panduan **`docs/FIX_REPOS_UBUNTU.md`** untuk script perbaikan otomatis yang menyesuaikan dengan Ubuntu Noble (Armbian terbaru).
+
+    Setelah repo diperbaiki:
+    ```bash
+    sudo apt update
+    sudo apt install tailscale -y
+    sudo tailscale up
+    ```
+````
 
 **Setelah connect, STB akan dapat IP Tailscale (misal: `100.64.x.x`)**
 
@@ -392,15 +516,21 @@ Edit SSH config untuk hanya menerima koneksi dari Tailscale:
 sudo nano /etc/ssh/sshd_config
 ```
 
-Tambahkan:
+Tambahkan (Ganti dengan IP Tailscale STB Anda, tanpa `/10`):
 
 ```
-ListenAddress 100.64.0.0/10
+ListenAddress 100.x.x.x
 ```
+
+_Disarankan menggunakan IP spesifik STB di Tailscale agar SSH benar-benar hanya aktif di interface tersebut._
+
+Restart SSH (di Ubuntu/Armbian service-nya bernama `ssh`):
 
 ```bash
-sudo systemctl restart sshd
+sudo systemctl restart ssh
 ```
+
+_Jika error `sshd.service not found`, itu karena nama service-nya `ssh`._
 
 > **Security**: SSH sekarang hanya bisa diakses dari device yang sudah join Tailscale network Anda.
 
@@ -701,47 +831,53 @@ build-arm64:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o bin/warung-api-arm64 ./cmd/api
 ```
 
-### 5.2 Transfer Binary ke STB
+### 5.2 Opsi A: Pull dari GitHub (Recommended)
+
+Jika project sudah ada di GitHub (publik/private), cara termudah adalah `git clone` langsung di STB.
+
+```bash
+# 1. Install Git
+sudo apt install git -y
+
+# 2. Masuk ke folder aplikasi
+mkdir -p /mnt/data-warung/app
+cd /mnt/data-warung/app
+
+# 3. Clone Repository
+# Ganti URL dengan repo Anda. Jika private, akan diminta username/token.
+git clone https://github.com/username/warung-backend.git .
+
+# 4. Buat file .env production
+cp .env.example .env.production
+nano .env.production
+# (Edit sesuai config production Anda: DB host, password, dll)
+
+# 5. Build Docker Image di STB
+docker compose -f docker-compose.yml build
+```
+
+### 5.2 Opsi B: Transfer Binary (Manual)
+
+Gunakan ini jika tidak ingin install Git atau source code di STB.
 
 ```bash
 # Via Tailscale (aman, private network)
 scp warung-api-arm64 user@100.64.x.x:/mnt/data-warung/app/
-
-# Atau via SCP biasa jika SSH masih terbuka
-scp warung-api-arm64 user@<stb-ip>:/mnt/data-warung/app/
 ```
 
-### 5.3 Build Docker Image di STB
+### 5.3 Build & Run
 
-Jika ingin menggunakan Docker (recommended):
+Karena kita menggunakan `docker-compose.yml` yang sudah **include build instruction** (lihat langkah 2.3 yang sudah kita update), kita tidak perlu buat Dockerfile manual lagi. Docker akan otomatis pakai `docker/Dockerfile` dari repo.
 
 ```bash
-# Di STB, buat Dockerfile khusus ARM64
-cat > /mnt/data-warung/Dockerfile.arm64 << 'EOF'
-FROM alpine:3.19
-
-WORKDIR /app
-
-RUN apk add --no-cache ca-certificates tzdata
-
-COPY warung-api-arm64 /app/api
-
-RUN addgroup -g 1000 -S appgroup && \
-    adduser -u 1000 -S appuser -G appgroup
-
-USER appuser
-
-EXPOSE 8080
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
-
-ENTRYPOINT ["/app/api"]
-EOF
-
-# Build image
+# Pastikan di folder app
 cd /mnt/data-warung/app
-docker build -f ../Dockerfile.arm64 -t warung-api:latest .
+
+# Build dan Jalankan Container
+docker compose -f docker-compose.yml up -d --build
+
+# Cek apakah berhasil build & running
+docker compose ps
 ```
 
 ### 5.4 Startup Script
@@ -754,10 +890,11 @@ set -e
 
 echo "🚀 Starting Warung Backend..."
 
-cd /mnt/data-warung
+# Masuk ke folder project (hasil clone)
+cd /mnt/data-warung/app
 
 # Start all services
-docker compose up -d
+docker compose -f docker-compose.yml up -d
 
 # Wait for health checks
 echo "⏳ Waiting for services to be healthy..."
@@ -792,7 +929,7 @@ After=docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/mnt/data-warung
+WorkingDirectory=/mnt/data-warung/app
 ExecStart=/usr/bin/docker compose up -d
 ExecStop=/usr/bin/docker compose down
 TimeoutStartSec=0
