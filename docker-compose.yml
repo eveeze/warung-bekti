@@ -28,7 +28,9 @@ services:
 
   # WarungOS API
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     container_name: warung-api
     env_file: .env.production
     ports:
