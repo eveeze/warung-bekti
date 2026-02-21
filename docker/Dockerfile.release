@@ -1,0 +1,23 @@
+# Build Release (Fast)
+# Image ini HANYA menyalin binary jadi, tidak compile ulang di STB yang lambat.
+
+FROM alpine:3.19
+
+WORKDIR /app
+
+# Install runtime dependencies (zona waktu, sertifikat SSL)
+RUN apk add --no-cache ca-certificates tzdata
+
+# Copy binary dari hasil build laptop (harus sudah di-upload)
+COPY warung-api /app/api
+RUN chmod +x /app/api
+
+# Create user non-root
+RUN addgroup -g 1000 -S appgroup && \
+    adduser -u 1000 -S appuser -G appgroup
+
+USER appuser
+
+EXPOSE 8080
+
+ENTRYPOINT ["/app/api"]
