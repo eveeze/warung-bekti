@@ -1,69 +1,58 @@
 #!/bin/bash
 
 # ==========================================
-# Script Deploy API directly to STB
+# Script Deploy API directly to STB (Fast & Safe)
 # ==========================================
 
 STB_USER="root"
 STB_IP="100.115.147.87"
-IMAGE_NAME="warung-api:latest"
-TAR_FILE="warung-api-stb.tar"
+BINARY_NAME="warung-api"
 
 echo "========================================="
 echo "🚀 BUILD & DEPLOY KE STB DIMULAI..."
+echo "Metode: Lokal Kompilasi + SCP Binary"
 echo "========================================="
 
-# 1. Pastikan build platform adalah linux/arm64
+# 1. Kompilasi GO murni (linux/arm64)
 echo ""
-echo "[1/4] 🏗️ Membangun Docker Image (linux/arm64)..."
-docker buildx build --platform linux/arm64 --build-arg TARGETOS=linux --build-arg TARGETARCH=arm64 -t $IMAGE_NAME -f docker/Dockerfile .
+echo "[1/4] 🏗️ Build Binary Go untuk linux/arm64..."
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o $BINARY_NAME ./cmd/api
 if [ $? -ne 0 ]; then
     echo "❌ Build Gagal!"
     exit 1
 fi
+echo "✅ Build Sukses: File $BINARY_NAME siap dikirim."
 
-# 2. Save Image ke file tar
+# 2. Transfer via SCP
 echo ""
-echo "[2/4] 📦 Menyimpan Image ke file archive ($TAR_FILE)..."
-docker save -o $TAR_FILE $IMAGE_NAME
-if [ $? -ne 0 ]; then
-    echo "❌ Gagal menyimpan image!"
-    exit 1
-fi
-
-# 3. Transfer via SCP
-echo ""
-echo "[3/4] 🚚 Mentransfer file sebesar ~30MB ke STB ($STB_IP)..."
+echo "[2/4] 🚚 Mengirim file Binary ke STB ($STB_IP)..."
 echo "Silakan masukkan password STB jika diminta."
-scp $TAR_FILE $STB_USER@$STB_IP:~/$TAR_FILE
+scp $BINARY_NAME $STB_USER@$STB_IP:~/warung-bekti/$BINARY_NAME
 if [ $? -ne 0 ]; then
     echo "❌ Transfer Gagal!"
     exit 1
 fi
 
-# 4. Load & Run di STB
+# 3. Build Docker Image LOKAL di STB (Hanya menyalin binary, nggak makan RAM)
 echo ""
-echo "[4/4] 🔄 Memuat dan menjalankan container di STB..."
+echo "[3/4] 🔄 Mem-build ulang image ringan dan menjalankan container di STB..."
 echo "Silakan masukkan password STB sekali lagi."
 ssh $STB_USER@$STB_IP << 'ENDSSH'
-    echo "-> Memuat image di STB..."
-    docker load -i ~/warung-api-stb.tar
-    
-    echo "-> Menghapus file archive..."
-    rm ~/warung-api-stb.tar
-    
-    echo "-> Pindah ke direktori project..."
     cd ~/warung-bekti || exit
+    
+    echo "-> Mem-build Docker image secara kilat menggunakan Dockerfile.release..."
+    # Build image warung-api dari binary yang dikirim
+    docker build -t warung-api:latest -f docker/Dockerfile.release .
     
     echo "-> Menghentikan container lama..."
     docker compose down
     
-    echo "-> Menjalankan container baru (tanpa build ulang)..."
-    # Re-create up without building since we loaded the image
+    echo "-> Menjalankan service dengan container baru..."
     docker compose up -d
     
-    echo "-> Membersihkan sisa docker lama..."
-    docker system prune -f
+    echo "-> Membersihkan image tak terpakai & binary instalasi..."
+    docker image prune -f
+    rm warung-api
     
     echo "✅ DEPLOYMENT SELESAI!"
 ENDSSH
