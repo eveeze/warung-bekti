@@ -16,7 +16,7 @@ echo "========================================="
 # 1. Pastikan build platform adalah linux/arm64
 echo ""
 echo "[1/4] 🏗️ Membangun Docker Image (linux/arm64)..."
-docker buildx build --platform linux/arm64 -t $IMAGE_NAME -f docker/Dockerfile .
+docker buildx build --platform linux/arm64 --build-arg TARGETOS=linux --build-arg TARGETARCH=arm64 -t $IMAGE_NAME -f docker/Dockerfile .
 if [ $? -ne 0 ]; then
     echo "❌ Build Gagal!"
     exit 1
