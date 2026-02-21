@@ -40,6 +40,12 @@ echo "Silakan masukkan password STB sekali lagi."
 ssh $STB_USER@$STB_IP << 'ENDSSH'
     cd ~/warung-bekti || exit
     
+    echo "-> Mengambil update terbaru dari repositori..."
+    git pull origin main
+    
+    echo "-> Menyesuaikan permission execution..."
+    chmod +x warung-api
+    
     echo "-> Mem-build Docker image secara kilat menggunakan Dockerfile.release..."
     # Build image warung-api dari binary yang dikirim
     docker build -t warung-api:latest -f docker/Dockerfile.release .
