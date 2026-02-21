@@ -1,9 +1,9 @@
-# Build stage
-FROM golang:1.24-alpine AS builder
+# Build stage (runs natively on build machine)
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
 
 WORKDIR /build
 
-# Install dependencies
+# Install dependencies (runs natively)
 RUN apk add --no-cache git ca-certificates
 
 # Copy go mod files
@@ -13,20 +13,23 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build binary
-ARG TARGETOS=linux
-ARG TARGETARCH=arm64
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
+# Pass build target arguments from buildx
+ARG TARGETOS
+ARG TARGETARCH
+
+# Build binary for the target architecture
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-arm64} go build \
     -ldflags="-w -s" \
     -o /build/api \
     ./cmd/api
 
-# Runtime stage
+# Runtime stage (Target architecture)
 FROM alpine:3.19
 
 WORKDIR /app
 
 # Install runtime dependencies
+# NOTE: This requires qemu-user-static installed on the host system if building for arm64 on amd64
 RUN apk add --no-cache ca-certificates tzdata
 
 # Copy binary from builder
