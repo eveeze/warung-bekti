@@ -1,22 +1,8 @@
+version: '3.8'
+
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: warung-postgres
-    environment:
-      POSTGRES_USER: warung
-      POSTGRES_PASSWORD: warung_secret
-      POSTGRES_DB: warung_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - '5432:5432'
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U warung -d warung_db']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+  # PostgreSQL Database is now handled externally via Aiven Cloud
+  # Local postgres container removed for STB deployment
 
   # Redis Cache
   # FIX CRASH STB: Gunakan Redis 5-alpine (Lebih stabil di kernel tua)
@@ -53,12 +39,12 @@ services:
       - LOG_LEVEL=info
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8080
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=warung
-      - DB_PASSWORD=warung_secret
-      - DB_NAME=warung_db
-      - DB_SSL_MODE=disable
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_SSL_MODE=${DB_SSL_MODE}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
@@ -71,14 +57,11 @@ services:
     ports:
       - '8080:8080'
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_started # Relaxed dependency because healthcheck is flaky on STB
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   redis_data:
 
 networks:
