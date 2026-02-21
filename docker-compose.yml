@@ -28,32 +28,9 @@ services:
 
   # WarungOS API
   api:
-    image: warung-api:latest # Gunakan image hasil load manual / build
-    # build:
-    #   context: .
-    #   dockerfile: docker/Dockerfile
-    # build: ... (Jangan build di STB jika disk unstable)
+    build: .
     container_name: warung-api
-    environment:
-      - APP_ENV=production
-      - LOG_LEVEL=info
-      - SERVER_HOST=0.0.0.0
-      - SERVER_PORT=8080
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - DB_SSL_MODE=${DB_SSL_MODE}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
-      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
-      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
-      - R2_BUCKET_NAME=${R2_BUCKET_NAME}
-      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
-      # MINIO removed (Use R2_ variables in .env)
-      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+    env_file: .env.production
     ports:
       - '8080:8080'
     depends_on:
