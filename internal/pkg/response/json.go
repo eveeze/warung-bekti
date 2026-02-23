@@ -32,6 +32,9 @@ type Meta struct {
 // JSON sends a JSON response with the given status code
 func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.WriteHeader(statusCode)
 
 	if data != nil {
@@ -142,6 +145,9 @@ func OK(w http.ResponseWriter, message string, data interface{}) {
 
 // NoContent sends a 204 No Content response
 func NoContent(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.WriteHeader(http.StatusNoContent)
 }
 
