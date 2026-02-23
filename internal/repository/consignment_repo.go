@@ -71,7 +71,7 @@ func (r *ConsignmentRepository) UpdateConsignor(ctx context.Context, id uuid.UUI
 }
 
 func (r *ConsignmentRepository) ListConsignors(ctx context.Context) ([]domain.Consignor, error) {
-	query := `SELECT id, name, phone, address, bank_account, bank_name, notes, is_active, created_at, updated_at FROM consignors ORDER BY name`
+	query := `SELECT id, name, phone, address, bank_account, bank_name, notes, is_active, created_at, updated_at FROM consignors WHERE is_active = true ORDER BY name`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err

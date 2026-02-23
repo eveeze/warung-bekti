@@ -78,12 +78,28 @@ func (h *CustomerHandler) List(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	filter := domain.CustomerFilter{Page: 1, PerPage: 20, SortBy: "name", SortOrder: "asc"}
+	
+	// Default to returning only active customers
+	isActive := true
+	filter.IsActive = &isActive
+
 	if search := query.Get("search"); search != "" {
 		filter.Search = &search
 	}
 	if query.Get("has_debt") == "true" {
 		hasDebt := true
 		filter.HasDebt = &hasDebt
+	}
+	if activeParam := query.Get("is_active"); activeParam != "" {
+		if activeParam == "false" {
+			val := false
+			filter.IsActive = &val
+		} else if activeParam == "all" {
+			filter.IsActive = nil
+		} else if activeParam == "true" {
+			val := true
+			filter.IsActive = &val
+		}
 	}
 	if page := query.Get("page"); page != "" {
 		if p, err := strconv.Atoi(page); err == nil {
