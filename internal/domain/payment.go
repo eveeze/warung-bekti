@@ -119,3 +119,35 @@ type ManualVerifyRequest struct {
 	PaymentID uuid.UUID `json:"payment_id"`
 	Notes     *string   `json:"notes,omitempty"`
 }
+
+// QRISChargeRequest represents the input to create a QRIS charge via Core API
+type QRISChargeRequest struct {
+	TransactionID uuid.UUID `json:"transaction_id"`
+}
+
+// QRISChargeResponse represents the response from QRIS Core API charge
+type QRISChargeResponse struct {
+	PaymentID  uuid.UUID `json:"payment_id"`
+	OrderID    string    `json:"order_id"`
+	QRCodeURL  string    `json:"qr_code_url"`
+	ExpiryTime string    `json:"expiry_time,omitempty"`
+}
+
+// MidtransAction represents an action object from Midtrans Core API response
+type MidtransAction struct {
+	Name   string `json:"name"`
+	Method string `json:"method"`
+	URL    string `json:"url"`
+}
+
+// PaymentStatusResponse represents the response for checking payment status
+type PaymentStatusResponse struct {
+	PaymentID     uuid.UUID     `json:"payment_id"`
+	TransactionID uuid.UUID     `json:"transaction_id"`
+	OrderID       string        `json:"order_id"`
+	Status        PaymentStatus `json:"status"`
+	PaymentType   *string       `json:"payment_type,omitempty"`
+	GrossAmount   int64         `json:"gross_amount"`
+	QRCodeURL     *string       `json:"qr_code_url,omitempty"`
+	PaidAt        *time.Time    `json:"paid_at,omitempty"`
+}

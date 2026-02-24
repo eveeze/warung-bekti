@@ -135,3 +135,64 @@ func (h *PaymentHandler) GetPaymentByTransaction(w http.ResponseWriter, r *http.
 
 	response.OK(w, "Payment record retrieved", payment)
 }
+
+// CreateQRISCharge creates a QRIS payment and returns QR code URL
+// POST /payments/qris/charge
+func (h *PaymentHandler) CreateQRISCharge(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TransactionID string `json:"transaction_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "Invalid request body")
+		return
+	}
+
+	v := validator.New()
+	v.Required("transaction_id", req.TransactionID, "Transaction ID is required")
+
+	if v.HasErrors() {
+		response.ValidationError(w, v.Errors())
+		return
+	}
+
+	transactionID, err := uuid.Parse(req.TransactionID)
+	if err != nil {
+		response.BadRequest(w, "Invalid transaction ID format")
+		return
+	}
+
+	result, err := h.paymentSvc.CreateQRISCharge(r.Context(), domain.QRISChargeRequest{
+		TransactionID: transactionID,
+	})
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+
+	response.Created(w, "QRIS QR code generated successfully", result)
+}
+
+// CheckPaymentStatus checks real-time payment status from Midtrans
+// GET /payments/{id}/status
+func (h *PaymentHandler) CheckPaymentStatus(w http.ResponseWriter, r *http.Request) {
+	paymentIDStr := r.PathValue("id")
+	paymentID, err := uuid.Parse(paymentIDStr)
+	if err != nil {
+		response.BadRequest(w, "Invalid payment ID format")
+		return
+	}
+
+	result, err := h.paymentSvc.CheckPaymentStatus(r.Context(), paymentID)
+	if err != nil {
+		if err == domain.ErrNotFound {
+			response.NotFound(w, "Payment record not found")
+			return
+		}
+		response.InternalServerError(w, err.Error())
+		return
+	}
+
+	response.OK(w, "Payment status retrieved", result)
+}
+
