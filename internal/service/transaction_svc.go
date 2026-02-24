@@ -124,11 +124,18 @@ func (s *TransactionService) CreateTransaction(ctx context.Context, input domain
 	var transaction *domain.Transaction
 
 	err := s.db.WithTransaction(ctx, func(tx *sql.Tx) error {
+		// QRIS: start as pending (completed only after Midtrans webhook confirms payment)
+		// Cash/Kasbon/Transfer: completed immediately (verified at POS)
+		initialStatus := domain.TransactionStatusCompleted
+		if input.PaymentMethod == domain.PaymentMethodQRIS {
+			initialStatus = domain.TransactionStatusPending
+		}
+
 		transaction = &domain.Transaction{
 			CustomerID:     input.CustomerID,
 			PaymentMethod:  input.PaymentMethod,
 			AmountPaid:     input.AmountPaid,
-			Status:         domain.TransactionStatusCompleted,
+			Status:         initialStatus,
 			Notes:          input.Notes,
 			CashierName:    input.CashierName,
 			Items:          make([]domain.TransactionItem, 0, len(input.Items)),
