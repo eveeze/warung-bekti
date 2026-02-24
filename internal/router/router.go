@@ -208,7 +208,7 @@ func New(
 	mux.HandleFunc("POST "+apiPrefix+"/payments/{id}/manual-verify", adminOnly(paymentHandler.ManualVerify))
 	mux.HandleFunc("GET "+apiPrefix+"/payments/transaction/{id}", cashierAccess(paymentHandler.GetPaymentByTransaction))
 	mux.HandleFunc("POST "+apiPrefix+"/payments/qris/charge", cashierAccess(paymentHandler.CreateQRISCharge))
-	mux.HandleFunc("GET "+apiPrefix+"/payments/{id}/status", cashierAccess(paymentHandler.CheckPaymentStatus))
+	mux.HandleFunc("GET "+apiPrefix+"/payments/status/{id}", cashierAccess(paymentHandler.CheckPaymentStatus))
 
 	// Stock Opname
 	mux.HandleFunc("POST "+apiPrefix+"/stock-opname/sessions", inventoryAccess(stockOpnameHandler.StartSession))
