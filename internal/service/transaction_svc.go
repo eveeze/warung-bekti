@@ -123,6 +123,14 @@ func (s *TransactionService) CreateTransaction(ctx context.Context, input domain
 		}
 	}
 
+	// Block CASH checkout if drawer is not open
+	if input.PaymentMethod == domain.PaymentMethodCash {
+		session, err := s.cashFlowRepo.GetCurrentSession(ctx)
+		if err != nil || session == nil {
+			return nil, fmt.Errorf("cannot process CASH transaction: no open drawer session")
+		}
+	}
+
 	// Build transaction within a database transaction
 	var transaction *domain.Transaction
 
@@ -382,6 +390,25 @@ func (s *TransactionService) CancelTransaction(ctx context.Context, id uuid.UUID
 		if transaction.PaymentMethod == domain.PaymentMethodKasbon && transaction.CustomerID != nil {
 			if err := s.customerRepo.SubtractDebt(ctx, *transaction.CustomerID, transaction.TotalAmount); err != nil {
 				return err
+			}
+		}
+
+		// Reverse cash flow for CASH payments
+		if transaction.PaymentMethod == domain.PaymentMethodCash {
+			session, err := s.cashFlowRepo.GetCurrentSession(ctx)
+			if err == nil && session != nil { // Ensure we only reverse if session is open
+				desc := fmt.Sprintf("Refund Transaksi #%s", transaction.ID.String()[:8])
+				cashFlowInput := domain.CashFlowInput{
+					Type:        domain.CashFlowTypeExpense,
+					Amount:      transaction.TotalAmount,
+					Description: &desc,
+					CreatedBy:   "system", // Ideally should be the user cancelling
+				}
+				refType := "transaction_refund"
+				_, err = s.cashFlowRepo.RecordCashFlow(ctx, tx, cashFlowInput, &session.ID, &refType, &transaction.ID)
+				if err != nil {
+					return fmt.Errorf("failed to reverse cash flow: %w", err)
+				}
 			}
 		}
 

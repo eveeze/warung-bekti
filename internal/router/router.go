@@ -70,7 +70,7 @@ func New(
 	productHandler := handler.NewProductHandler(productRepo, r2, cacheSvc)
 	customerHandler := handler.NewCustomerHandler(customerRepo)
 	transactionHandler := handler.NewTransactionHandler(transactionSvc, transactionRepo)
-	kasbonHandler := handler.NewKasbonHandler(kasbonRepo, customerRepo)
+	kasbonHandler := handler.NewKasbonHandler(kasbonRepo, customerRepo, cashFlowRepo)
 	inventoryHandler := handler.NewInventoryHandler(inventoryRepo, productRepo, cacheSvc, eventSvc)
 	reportHandler := handler.NewReportHandler(transactionRepo, kasbonRepo, inventoryRepo, productRepo)
 	authHandler := handler.NewAuthHandler(authSvc)

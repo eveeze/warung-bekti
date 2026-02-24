@@ -20,11 +20,12 @@ import (
 type KasbonHandler struct {
 	kasbonRepo   *repository.KasbonRepository
 	customerRepo *repository.CustomerRepository
+	cashFlowRepo *repository.CashFlowRepository
 }
 
 // NewKasbonHandler creates a new KasbonHandler
-func NewKasbonHandler(kasbonRepo *repository.KasbonRepository, customerRepo *repository.CustomerRepository) *KasbonHandler {
-	return &KasbonHandler{kasbonRepo: kasbonRepo, customerRepo: customerRepo}
+func NewKasbonHandler(kasbonRepo *repository.KasbonRepository, customerRepo *repository.CustomerRepository, cashFlowRepo *repository.CashFlowRepository) *KasbonHandler {
+	return &KasbonHandler{kasbonRepo: kasbonRepo, customerRepo: customerRepo, cashFlowRepo: cashFlowRepo}
 }
 
 // GetHistory retrieves kasbon history for a customer
@@ -117,6 +118,29 @@ func (h *KasbonHandler) RecordPayment(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response.InternalServerError(w, "Failed to record payment")
 		return
+	}
+
+	// Auto-record to Cash Flow
+	session, err := h.cashFlowRepo.GetCurrentSession(r.Context())
+	if err == nil && session != nil { // Ensure we only record if session is open
+		desc := fmt.Sprintf("Pembayaran Kasbon %s", customer.Name)
+		if input.Notes != nil {
+			desc += " - " + *input.Notes
+		}
+		
+		createdBy := "system"
+		if input.CreatedBy != nil {
+			createdBy = *input.CreatedBy
+		}
+
+		cashFlowInput := domain.CashFlowInput{
+			Type:        domain.CashFlowTypeIncome,
+			Amount:      input.Amount,
+			Description: &desc,
+			CreatedBy:   createdBy,
+		}
+		refType := "kasbon_payment"
+		_, _ = h.cashFlowRepo.RecordCashFlow(r.Context(), nil, cashFlowInput, &session.ID, &refType, &record.ID)
 	}
 
 	response.Created(w, "Payment recorded successfully", record)
