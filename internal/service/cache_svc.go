@@ -3,11 +3,15 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/eveeze/warung-backend/internal/database"
 )
+
+// ErrCacheUnavailable is returned when the Redis client is nil
+var ErrCacheUnavailable = errors.New("cache unavailable")
 
 // CacheService wraps Redis operations for caching
 type CacheService struct {
@@ -21,6 +25,9 @@ func NewCacheService(redis *database.RedisClient) *CacheService {
 
 // Get retrieves a value from cache and unmarshals it
 func (s *CacheService) Get(ctx context.Context, key string, dest interface{}) error {
+	if s == nil || s.redis == nil {
+		return ErrCacheUnavailable
+	}
 	data, err := s.redis.Get(ctx, key).Bytes()
 	if err != nil {
 		return err
@@ -31,6 +38,9 @@ func (s *CacheService) Get(ctx context.Context, key string, dest interface{}) er
 
 // Set stores a value in cache with TTL
 func (s *CacheService) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	if s == nil || s.redis == nil {
+		return ErrCacheUnavailable
+	}
 	data, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("failed to marshal cache value: %w", err)
@@ -41,11 +51,17 @@ func (s *CacheService) Set(ctx context.Context, key string, value interface{}, t
 
 // Delete removes a key from cache
 func (s *CacheService) Delete(ctx context.Context, key string) error {
+	if s == nil || s.redis == nil {
+		return ErrCacheUnavailable
+	}
 	return s.redis.Del(ctx, key).Err()
 }
 
 // InvalidatePattern deletes all keys matching a pattern
 func (s *CacheService) InvalidatePattern(ctx context.Context, pattern string) error {
+	if s == nil || s.redis == nil {
+		return ErrCacheUnavailable
+	}
 	keys, err := s.redis.Keys(ctx, pattern).Result()
 	if err != nil {
 		return err
@@ -60,6 +76,9 @@ func (s *CacheService) InvalidatePattern(ctx context.Context, pattern string) er
 
 // Exists checks if a key exists in cache
 func (s *CacheService) Exists(ctx context.Context, key string) (bool, error) {
+	if s == nil || s.redis == nil {
+		return false, ErrCacheUnavailable
+	}
 	count, err := s.redis.Exists(ctx, key).Result()
 	return count > 0, err
 }
