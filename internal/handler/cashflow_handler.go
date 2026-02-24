@@ -126,10 +126,19 @@ func (h *CashFlowHandler) RecordCashFlow(w http.ResponseWriter, r *http.Request)
 		Type        string  `json:"type"`
 		Amount      int64   `json:"amount"`
 		Description *string `json:"description"`
+		Notes       *string `json:"notes"` // Support frontend payload
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.BadRequest(w, "Invalid body")
 		return
+	}
+
+	// Use notes if description is not provided (frontend compatibility)
+	var description *string
+	if req.Description != nil {
+		description = req.Description
+	} else if req.Notes != nil {
+		description = req.Notes
 	}
 
 	v := validator.New()
@@ -158,7 +167,7 @@ func (h *CashFlowHandler) RecordCashFlow(w http.ResponseWriter, r *http.Request)
 		CategoryID:  categoryID,
 		Type:        domain.CashFlowType(req.Type),
 		Amount:      req.Amount,
-		Description: req.Description,
+		Description: description,
 		CreatedBy:   username,
 	}
 

@@ -49,7 +49,7 @@ func New(
 	notificationSvc := service.NewNotificationService(notificationRepo, oneSignalClient, queueClient)
 
 	transactionSvc := service.NewTransactionService(
-		db, transactionRepo, productRepo, customerRepo, kasbonRepo, inventoryRepo, refillableRepo, notificationSvc,
+		db, transactionRepo, productRepo, customerRepo, kasbonRepo, inventoryRepo, refillableRepo, cashFlowRepo, notificationSvc,
 	)
 	authSvc := service.NewAuthService(userRepo, cfg)
 	userSvc := service.NewUserService(userRepo) // New Service initialized

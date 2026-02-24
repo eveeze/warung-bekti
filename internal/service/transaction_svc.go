@@ -21,6 +21,7 @@ type TransactionService struct {
 	kasbonRepo      *repository.KasbonRepository
 	inventoryRepo   *repository.InventoryRepository
 	refillableRepo  *repository.RefillableRepository
+	cashFlowRepo    *repository.CashFlowRepository
 	notificationSvc *NotificationService
 }
 
@@ -33,6 +34,7 @@ func NewTransactionService(
 	kasbonRepo *repository.KasbonRepository,
 	inventoryRepo *repository.InventoryRepository,
 	refillableRepo *repository.RefillableRepository,
+	cashFlowRepo *repository.CashFlowRepository,
 	notificationSvc *NotificationService,
 ) *TransactionService {
 	return &TransactionService{
@@ -43,6 +45,7 @@ func NewTransactionService(
 		kasbonRepo:      kasbonRepo,
 		inventoryRepo:   inventoryRepo,
 		refillableRepo:  refillableRepo,
+		cashFlowRepo:    cashFlowRepo,
 		notificationSvc: notificationSvc,
 	}
 }
@@ -297,6 +300,38 @@ func (s *TransactionService) CreateTransaction(ctx context.Context, input domain
 			m.ReferenceID = &transaction.ID
 			if err := s.refillableRepo.RecordMovement(ctx, tx, m); err != nil {
 				return fmt.Errorf("failed to record container movement: %w", err)
+			}
+		}
+
+		// Auto-record to Cash Flow for CASH payments
+		if input.PaymentMethod == domain.PaymentMethodCash {
+			// Check if there is an open session
+			session, err := s.cashFlowRepo.GetCurrentSession(ctx)
+			if err == nil && session != nil { // Ignore if no session is open
+				
+				// Handle pointer for Notes
+				var description *string
+				if transaction.Notes != nil {
+					description = transaction.Notes
+				}
+
+				// Handle pointer for CreatedBy
+				createdBy := "system"
+				if input.CashierName != nil {
+					createdBy = *input.CashierName
+				}
+
+				cashFlowInput := domain.CashFlowInput{
+					Type:        domain.CashFlowTypeIncome,
+					Amount:      transaction.TotalAmount,
+					Description: description,
+					CreatedBy:   createdBy,
+				}
+				refType := "transaction"
+				_, err := s.cashFlowRepo.RecordCashFlow(ctx, tx, cashFlowInput, &session.ID, &refType, &transaction.ID)
+				if err != nil {
+					return fmt.Errorf("failed to record cash flow: %w", err)
+				}
 			}
 		}
 
