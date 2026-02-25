@@ -319,7 +319,7 @@ func validatePayment(total, paid int64, method domain.PaymentMethod) error {
 }
 
 func isValidInvoiceNumber(inv string) bool {
-	if len(inv) != 18 { // INV-YYYYMMDD-XXXX
+	if len(inv) != 17 { // INV-YYYYMMDD-XXXX
 		return false
 	}
 	if inv[:4] != "INV-" {

@@ -259,7 +259,7 @@ func (r *TransactionRepository) UpdateStatus(ctx context.Context, id uuid.UUID, 
 // GetDailySales returns total sales for a date
 func (r *TransactionRepository) GetDailySales(ctx context.Context, date string) (int64, int, error) {
 	query := `SELECT COALESCE(SUM(total_amount), 0), COUNT(*) FROM transactions 
-		WHERE DATE(created_at) = $1 AND status = 'completed'`
+		WHERE (created_at AT TIME ZONE 'Asia/Jakarta')::date = $1::date AND status = 'completed'`
 	var total int64
 	var count int
 	err := r.db.QueryRowContext(ctx, query, date).Scan(&total, &count)
@@ -270,7 +270,7 @@ func (r *TransactionRepository) GetDailySales(ctx context.Context, date string) 
 func (r *TransactionRepository) GetDailyProfit(ctx context.Context, date string) (int64, error) {
 	query := `SELECT COALESCE(SUM(ti.total_amount - (ti.cost_price * ti.quantity)), 0)
 		FROM transaction_items ti JOIN transactions t ON t.id = ti.transaction_id
-		WHERE DATE(t.created_at) = $1 AND t.status = 'completed'`
+		WHERE (t.created_at AT TIME ZONE 'Asia/Jakarta')::date = $1::date AND t.status = 'completed'`
 	var profit int64
 	err := r.db.QueryRowContext(ctx, query, date).Scan(&profit)
 	return profit, err
@@ -279,11 +279,11 @@ func (r *TransactionRepository) GetDailyProfit(ctx context.Context, date string)
 // GetHourlySales returns sales grouped by hour for a specific date
 func (r *TransactionRepository) GetHourlySales(ctx context.Context, date string) ([]map[string]interface{}, error) {
 	query := `
-		SELECT EXTRACT(HOUR FROM created_at) as hour, 
+		SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'Asia/Jakarta') as hour, 
 		       COALESCE(SUM(total_amount), 0) as sales, 
 		       COUNT(*) as transactions
 		FROM transactions 
-		WHERE DATE(created_at) = $1 AND status = 'completed'
+		WHERE (created_at AT TIME ZONE 'Asia/Jakarta')::date = $1::date AND status = 'completed'
 		GROUP BY hour
 		ORDER BY hour ASC
 	`
@@ -318,7 +318,7 @@ func (r *TransactionRepository) GetTopProducts(ctx context.Context, date string,
 		       SUM(ti.total_amount) as total_sales
 		FROM transaction_items ti
 		JOIN transactions t ON t.id = ti.transaction_id
-		WHERE DATE(t.created_at) = $1 AND t.status = 'completed'
+		WHERE (t.created_at AT TIME ZONE 'Asia/Jakarta')::date = $1::date AND t.status = 'completed'
 		GROUP BY ti.product_id, ti.product_name
 		ORDER BY total_sales DESC
 		LIMIT $2
