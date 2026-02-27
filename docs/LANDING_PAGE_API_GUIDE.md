@@ -51,7 +51,7 @@ GET /public/products?category_id=550e8400-e29b-41d4-a716-446655440000&page=2&per
 
 ```json
 {
-  "status": "success",
+  "success": true,
   "message": "Products retrieved",
   "data": {
     "products": [
@@ -110,7 +110,67 @@ GET /public/products?category_id=550e8400-e29b-41d4-a716-446655440000&page=2&per
 
 ---
 
-### 2. `GET /public/categories` — List Kategori Aktif
+### 2. `GET /public/products/{id}` — Detail Produk
+
+Mengembalikan detail satu produk berdasarkan UUID. Hanya menampilkan produk yang aktif.
+
+#### Contoh Request
+
+```bash
+GET /public/products/e6694b48-cd74-4d6e-befa-a74113a46bae
+```
+
+#### Response Format (200 OK)
+
+```json
+{
+  "success": true,
+  "message": "Product retrieved",
+  "data": {
+    "id": "e6694b48-cd74-4d6e-befa-a74113a46bae",
+    "name": "Better Caramel",
+    "description": "",
+    "unit": "pcs",
+    "base_price": 2000,
+    "image_url": "https://assets.warungmanto.store/products/48ac864e.jpg",
+    "category": {
+      "id": "cda8db2f-3bed-431a-8e12-235f62a12e48",
+      "name": "Snacks",
+      "description": "Kategori untuk snacks"
+    },
+    "pricing_tiers": [
+      {
+        "name": "Grosir",
+        "min_quantity": 10,
+        "max_quantity": 49,
+        "price": 1800
+      }
+    ]
+  }
+}
+```
+
+#### Error Responses
+
+| Status | Kondisi                              | Response                                                |
+| ------ | ------------------------------------ | ------------------------------------------------------- |
+| 400    | ID bukan UUID valid                  | `{ "success": false, "message": "Invalid product ID" }` |
+| 404    | Produk tidak ditemukan / tidak aktif | `{ "success": false, "message": "Product not found" }`  |
+
+#### Fetch di Frontend
+
+```javascript
+async function fetchProductDetail(productId) {
+  const res = await fetch(`${API_BASE}/public/products/${productId}`);
+  if (!res.ok) throw new Error('Product not found');
+  const json = await res.json();
+  return json.data; // { id, name, description, unit, base_price, image_url, category, pricing_tiers }
+}
+```
+
+---
+
+### 3. `GET /public/categories` — List Kategori Aktif
 
 Mengembalikan semua kategori aktif yang tersedia.
 
@@ -124,7 +184,7 @@ GET /public/categories
 
 ```json
 {
-  "status": "success",
+  "success": true,
   "message": "Categories retrieved",
   "data": [
     {

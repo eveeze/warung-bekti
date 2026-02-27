@@ -100,6 +100,7 @@ func New(
 
 	// Public routes for landing page (no auth)
 	mux.HandleFunc("GET /public/products", publicHandler.ListProducts)
+	mux.HandleFunc("GET /public/products/{id}", publicHandler.GetProduct)
 	mux.HandleFunc("GET /public/categories", publicHandler.ListCategories)
 	
 	// Real-time Events (SSE) - Protected

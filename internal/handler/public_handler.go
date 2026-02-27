@@ -140,6 +140,67 @@ func (h *PublicHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetProduct returns a single active product by ID for the public landing page
+func (h *PublicHandler) GetProduct(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.BadRequest(w, "Invalid product ID")
+		return
+	}
+
+	product, err := h.productRepo.GetByID(r.Context(), id)
+	if err != nil {
+		response.NotFound(w, "Product not found")
+		return
+	}
+
+	// Only show active products publicly
+	if !product.IsActive {
+		response.NotFound(w, "Product not found")
+		return
+	}
+
+	// Convert to public format
+	pp := PublicProduct{
+		ID:          product.ID,
+		Name:        product.Name,
+		Description: product.Description,
+		Unit:        product.Unit,
+		BasePrice:   product.BasePrice,
+		ImageURL:    product.ImageURL,
+	}
+
+	// Load category if available
+	if product.CategoryID != nil {
+		cat, catErr := h.categoryRepo.FindByID(r.Context(), *product.CategoryID)
+		if catErr == nil && cat.IsActive {
+			pp.Category = &PublicCategory{
+				ID:          cat.ID,
+				Name:        cat.Name,
+				Description: cat.Description,
+			}
+		}
+	}
+
+	// Load pricing tiers (already loaded by GetByID)
+	if len(product.PricingTiers) > 0 {
+		pp.PricingTiers = make([]PublicPricingTier, 0)
+		for _, tier := range product.PricingTiers {
+			if tier.IsActive {
+				pp.PricingTiers = append(pp.PricingTiers, PublicPricingTier{
+					Name:        tier.Name,
+					MinQuantity: tier.MinQuantity,
+					MaxQuantity: tier.MaxQuantity,
+					Price:       tier.Price,
+				})
+			}
+		}
+	}
+
+	response.OK(w, "Product retrieved", pp)
+}
+
 // ListCategories returns active categories for the public landing page
 func (h *PublicHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.categoryRepo.ListActive(r.Context())
