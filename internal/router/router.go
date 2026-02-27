@@ -85,6 +85,9 @@ func New(
 	eventHandler := handler.NewEventHandler(eventSvc)
 	notificationHandler := handler.NewNotificationHandler(notificationSvc)
 
+	// Public handler (no auth required) for landing page
+	publicHandler := handler.NewPublicHandler(productRepo, categoryRepo, cacheSvc)
+
 	// Health check routes (Public)
 	mux.HandleFunc("GET /health", healthHandler.Health)
 	mux.HandleFunc("GET /ready", healthHandler.Ready)
@@ -94,6 +97,10 @@ func New(
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
 	mux.HandleFunc("POST /auth/register", authHandler.Register)
 	mux.HandleFunc("POST /auth/refresh", authHandler.RefreshToken)
+
+	// Public routes for landing page (no auth)
+	mux.HandleFunc("GET /public/products", publicHandler.ListProducts)
+	mux.HandleFunc("GET /public/categories", publicHandler.ListCategories)
 	
 	// Real-time Events (SSE) - Protected
 	// Frontend: const eventSource = new EventSource('/api/v1/events?token=...') or use EventSourcePolyfill for headers

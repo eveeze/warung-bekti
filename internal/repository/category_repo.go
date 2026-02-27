@@ -139,3 +139,30 @@ func (r *CategoryRepository) HasProducts(ctx context.Context, categoryID uuid.UU
 	err := r.db.QueryRowContext(ctx, query, categoryID).Scan(&exists)
 	return exists, err
 }
+
+// ListActive retrieves all active categories (for public landing page)
+func (r *CategoryRepository) ListActive(ctx context.Context) ([]domain.Category, error) {
+	query := `
+		SELECT id, name, description, parent_id, is_active, created_at, updated_at
+		FROM categories
+		WHERE is_active = true
+		ORDER BY name ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var categories []domain.Category
+	for rows.Next() {
+		var c domain.Category
+		if err := rows.Scan(
+			&c.ID, &c.Name, &c.Description, &c.ParentID, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		categories = append(categories, c)
+	}
+	return categories, rows.Err()
+}

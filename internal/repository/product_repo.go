@@ -703,6 +703,129 @@ func (r *ProductRepository) UpdatePricingTier(ctx context.Context, tierID uuid.U
 	return &tier, nil
 }
 
+// PublicProductFilter is a simplified filter for public product listing
+type PublicProductFilter struct {
+	Search     *string
+	CategoryID *uuid.UUID
+	IsActive   *bool
+	Page       int
+	PerPage    int
+	SortBy     string
+	SortOrder  string
+}
+
+// ListPublic retrieves active products with category info for the public landing page
+func (r *ProductRepository) ListPublic(ctx context.Context, filter PublicProductFilter) ([]domain.Product, int64, error) {
+	var conditions []string
+	var args []interface{}
+	argIndex := 1
+
+	if filter.Search != nil && *filter.Search != "" {
+		conditions = append(conditions, fmt.Sprintf("p.name ILIKE $%d", argIndex))
+		args = append(args, "%"+*filter.Search+"%")
+		argIndex++
+	}
+
+	if filter.CategoryID != nil {
+		conditions = append(conditions, fmt.Sprintf("p.category_id = $%d", argIndex))
+		args = append(args, *filter.CategoryID)
+		argIndex++
+	}
+
+	if filter.IsActive != nil {
+		conditions = append(conditions, fmt.Sprintf("p.is_active = $%d", argIndex))
+		args = append(args, *filter.IsActive)
+		argIndex++
+	}
+
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// Count total
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM products p %s", whereClause)
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count products: %w", err)
+	}
+
+	// Pagination
+	page := filter.Page
+	if page < 1 {
+		page = 1
+	}
+	perPage := filter.PerPage
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+
+	validSortFields := map[string]bool{"name": true, "base_price": true, "created_at": true}
+	sortBy := "p.name"
+	if filter.SortBy != "" && validSortFields[filter.SortBy] {
+		sortBy = "p." + filter.SortBy
+	}
+	sortOrder := "ASC"
+	if strings.ToUpper(filter.SortOrder) == "DESC" {
+		sortOrder = "DESC"
+	}
+
+	query := fmt.Sprintf(`
+		SELECT p.id, p.name, p.description, p.unit, p.base_price, p.image_url,
+			p.category_id, c.name, c.description
+		FROM products p
+		LEFT JOIN categories c ON p.category_id = c.id AND c.is_active = true
+		%s
+		ORDER BY %s %s
+		LIMIT $%d OFFSET $%d
+	`, whereClause, sortBy, sortOrder, argIndex, argIndex+1)
+
+	args = append(args, perPage, (page-1)*perPage)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list public products: %w", err)
+	}
+	defer rows.Close()
+
+	var products []domain.Product
+	for rows.Next() {
+		var p domain.Product
+		var catName *string
+		var catDesc *string
+		if err := rows.Scan(
+			&p.ID, &p.Name, &p.Description, &p.Unit, &p.BasePrice, &p.ImageURL,
+			&p.CategoryID, &catName, &catDesc,
+		); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan product: %w", err)
+		}
+		if p.CategoryID != nil && catName != nil {
+			p.Category = &domain.Category{
+				ID:          *p.CategoryID,
+				Name:        *catName,
+				Description: catDesc,
+			}
+		}
+		products = append(products, p)
+	}
+
+	// Load pricing tiers in batch
+	if len(products) > 0 {
+		productIDs := make([]uuid.UUID, len(products))
+		for i, p := range products {
+			productIDs[i] = p.ID
+		}
+		tiersMap, err := r.GetPricingTiersBatch(ctx, productIDs)
+		if err == nil {
+			for i := range products {
+				products[i].PricingTiers = tiersMap[products[i].ID]
+			}
+		}
+	}
+
+	return products, total, rows.Err()
+}
+
 // DeletePricingTier soft deletes a pricing tier
 func (r *ProductRepository) DeletePricingTier(ctx context.Context, tierID uuid.UUID) error {
 	query := `UPDATE pricing_tiers SET is_active = false, updated_at = NOW() WHERE id = $1`
