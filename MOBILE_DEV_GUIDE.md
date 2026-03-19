@@ -1,6 +1,6 @@
 # Panduan API Lengkap - Warung Backend
 
-**Total Endpoints: 76**
+**Total Endpoints: 71**
 
 ```
 Base URL: http://your-server:8080
@@ -27,8 +27,7 @@ Header: Authorization: Bearer <access_token>
 12. [POS Features](#12-pos-features-6-endpoints)
 13. [Consignment](#13-consignment-3-endpoints)
 14. [Refillables](#14-refillables-2-endpoints)
-15. [Store Locations](#15-store-locations-5-endpoints)
-16. [Image Handling & Development Setup](#16-image-handling--development-setup)
+15. [Image Handling & Development Setup](#15-image-handling--development-setup)
 
 ---
 
@@ -178,7 +177,6 @@ POST /api/v1/products
   "sku": "IND-GRG-001",
   "description": "Mie instan goreng",
   "category_id": "uuid-kategori",
-  "location_id": "uuid-lokasi",
   "unit": "pcs",
   "base_price": 3500,
   "cost_price": 3100,
@@ -1172,163 +1170,7 @@ POST /api/v1/refillables/adjust
 
 ---
 
-## 15. Store Locations (5 endpoints)
-
-### 15.1 List Locations
-
-```
-GET /api/v1/locations
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Locations retrieved successfully",
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Rak Gondola 1",
-      "category": "Rak Gondola",
-      "x_coordinate": 10.5,
-      "y_coordinate": 0.0,
-      "z_coordinate": 5.0,
-      "width": 120.0,
-      "depth": 40.0,
-      "height": 180.0,
-      "created_at": "timestamp",
-      "updated_at": "timestamp"
-    }
-  ],
-  "meta": { "total": 1 }
-}
-```
-
-### 15.2 Create Location
-
-```
-POST /api/v1/locations
-```
-
-**Role:** Admin only
-
-**Request Body:**
-
-```json
-{
-  "name": "Chiller Minuman A",
-  "category": "Chiller",
-  "x_coordinate": 2.5,
-  "y_coordinate": 0.0,
-  "z_coordinate": 1.5,
-  "width": 60.0,
-  "depth": 60.0,
-  "height": 200.0
-}
-```
-
-**Response (201 Created):**
-
-```json
-{
-  "success": true,
-  "message": "Location created successfully",
-  "data": { ... }
-}
-```
-
-**Error Response (400 Bad Request):**
-
-```json
-{
-  "error": "Name and Category are required"
-}
-```
-
-### 15.3 Get Location Detail
-
-```
-GET /api/v1/locations/{id}
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "data": { ... }
-}
-```
-
-**Error Response (404 Not Found):**
-
-```json
-{
-  "success": false,
-  "error": { "code": "NOT_FOUND", "message": "Location not found" }
-}
-```
-
-### 15.4 Update Location
-
-```
-PUT /api/v1/locations/{id}
-```
-
-**Role:** Admin only
-
-**Request Body (All Optional):**
-
-```json
-{
-  "name": "Chiller B",
-  "x_coordinate": 3.0
-}
-```
-
-**Response (200 OK):**
-
-```json
-{
-  "success": true,
-  "message": "Location updated successfully",
-  "data": { ... }
-}
-```
-
-**Error Response (400 Bad Request / 404 Not Found):**
-
-```json
-{
-  "success": false,
-  "error": { "code": "NOT_FOUND", "message": "Location not found" }
-}
-```
-
-### 15.5 Delete Location
-
-```
-DELETE /api/v1/locations/{id}
-```
-
-**Role:** Admin only
-
-**Response (204 No Content):**
-_(No body, successful deletion)_
-
-**Error Response (404 Not Found):**
-
-```json
-{
-  "success": false,
-  "error": { "code": "NOT_FOUND", "message": "Location not found" }
-}
-```
-
----
-
-## 16. Image Handling & Development Setup
+## 15. Image Handling & Development Setup
 
 ### ⚙️ Konfigurasi URL MinIO
 
@@ -1382,10 +1224,9 @@ Untuk fitur "Tambah Produk" atau "Edit Produk" di Mobile App:
 | Payments         | ✅    | ✅      | ❌        |
 | Consignment      | ✅    | ❌      | ❌        |
 | Refillables      | ✅    | ❌      | ✅        |
-| Store Locations  | ✅    | ✅      | ✅        |
 
 ---
 
 **Document Version:** 1.0
-**Last Updated:** 2026-03-19
-**Total Endpoints:** 76
+**Last Updated:** 2026-01-31
+**Total Endpoints:** 71

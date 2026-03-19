@@ -126,7 +126,6 @@ Query Params: `page=1`, `per_page=20`, `search=name_or_barcode`, `category_id=uu
       "name": "Indomie Goreng",
       "description": "Mie Instan Goreng",
       "category_id": "category-uuid",
-      "location_id": "location-uuid",
       "unit": "bungkus",
       "base_price": 3500,
       "cost_price": 3100,
@@ -142,10 +141,6 @@ Query Params: `page=1`, `per_page=20`, `search=name_or_barcode`, `category_id=uu
       "category": {
         "id": "category-uuid",
         "name": "Makanan Instan"
-      },
-      "location": {
-        "id": "location-uuid",
-        "name": "Rak Gondola 1"
       },
       "pricing_tiers": [
         {
@@ -180,7 +175,6 @@ Query Params: `page=1`, `per_page=20`, `search=name_or_barcode`, `category_id=uu
   "name": "Kopi Kapal Api",
   "description": "Kopi Hitam",
   "category_id": "uuid",
-  "location_id": "uuid",
   "unit": "sachet",
   "base_price": 1500,
   "cost_price": 1200,
@@ -1406,122 +1400,5 @@ Query Params: `page=1`, `per_page=20`, `search=name_or_barcode`, `category_id=uu
   "type": "adjustment", // adjustment, return_empty, purchase_full
   "empty_change": -1, // Change in empty count
   "full_change": 1 // Change in full count
-}
-```
-
----
-
-### 13. Store Locations
-
-#### List Locations
-
-**GET** `/api/v1/locations`
-
-```json
-// Response Body (200 OK)
-{
-  "success": true,
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Rak Gondola 1",
-      "category": "Rak Gondola",
-      "x_coordinate": 10.5,
-      "y_coordinate": 0.0,
-      "z_coordinate": 5.0,
-      "width": 120.0,
-      "depth": 40.0,
-      "height": 180.0
-    }
-  ],
-  "meta": { "total": 1 }
-}
-```
-
-#### Create Location
-
-**POST** `/api/v1/locations`
-
-```json
-// Request Body
-{
-  "name": "Chiller Minuman A",
-  "category": "Chiller",
-  "x_coordinate": 2.5,
-  "y_coordinate": 0.0,
-  "z_coordinate": 1.5,
-  "width": 60.0,
-  "depth": 60.0,
-  "height": 200.0
-}
-
-// Response Body (201 Created)
-{
-  "success": true,
-  "message": "Location created successfully",
-  "data": { ... }
-}
-
-// Error Response (400 Bad Request)
-{
-  "error": "Name and Category are required"
-}
-```
-
-#### Get Location Detail
-
-**GET** `/api/v1/locations/{id}`
-
-```json
-// Response Body (200 OK)
-{
-  "success": true,
-  "data": { ... }
-}
-
-// Error Response (404 Not Found)
-{
-  "success": false,
-  "error": { "code": "NOT_FOUND", "message": "Location not found" }
-}
-```
-
-#### Update Location
-
-**PUT** `/api/v1/locations/{id}`
-
-```json
-// Request Body (All Optional)
-{
-  "name": "Chiller B",
-  "x_coordinate": 3.0
-}
-
-// Response Body (200 OK)
-{
-  "success": true,
-  "message": "Location updated successfully",
-  "data": { ... }
-}
-
-// Error Response (404 Not Found)
-{
-  "success": false,
-  "error": { "code": "NOT_FOUND", "message": "Location not found" }
-}
-```
-
-#### Delete Location
-
-**DELETE** `/api/v1/locations/{id}`
-
-```json
-// Response Body (204 No Content)
-// (No JSON body returned, just HTTP status 204)
-
-// Error Response (404 Not Found)
-{
-  "success": false,
-  "error": { "code": "NOT_FOUND", "message": "Location not found" }
 }
 ```
