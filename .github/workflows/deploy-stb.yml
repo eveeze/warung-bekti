@@ -17,17 +17,22 @@ jobs:
       - name: 🏗️ Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22' # Sesuaikan dengan versi Go di go.mod kamu
+          go-version: '1.22'
+          cache: false # Disabled to fix sporadic 'tar' extraction cache corruption errors
 
       - name: 🔨 Build Binary (linux/arm64)
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o warung-api ./cmd/api
 
-      - name: 🚀 Connect to Tailscale
-        uses: tailscale/github-action@v3
+      - name: 🚀 Connect to Tailscale (with Retry)
+        uses: Wandalen/wretry.action@v3.8.0
         with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          version: latest
+          action: tailscale/github-action@v3
+          with: |
+            authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+            version: latest
+          attempt_limit: 5
+          attempt_delay: 5000
 
       - name: 🚚 Transfer Binary & Restart Docker on STB
         env:
