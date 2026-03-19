@@ -1,18 +1,112 @@
-# Store Locations API
+# Store Locations Module
 
-This module provides the ability to manage physical and logical store locations (such as shelves, racks, refrigerators, and displays) where products are placed.
+This module isolates the documentation and integration guides for the physical/logical Store Locations API and its integrations with the React Native mobile application.
 
-## Endpoints
+---
+
+## 🤖 AI Agent Integration Checklist
+
+To fully integrate the Location feature into the mobile frontend, the AI Agent must implement the following updates across other feature modules:
+
+- [ ] **Product Input/Edit Forms**: Update the Product creation and editing screens to include a Select/Dropdown component for `location_id`. This should fetch from the `GET /api/v1/locations` endpoint.
+- [ ] **Product Details Screen**: When viewing a product, parse the nested `location` object inside the product response and display the exact Rack/Chiller name where the product is located.
+- [ ] **Data Models / Types**: Update the TypeScript definition for `Product` to include `location_id?: string;` and `location?: Location;`.
+- [ ] **Inventory/Stock UI**: Display location badges in the stock opname lists to help staff physically navigate the store.
+
+---
+
+## 📦 React Native 3D Visualization Guide
+
+The `Location` model provides X, Y, Z coordinates alongside physical dimensions (Width, Depth, Height). This enables the creation of an immersive 3D store map or an interactive 2D top-down isometric view.
+
+### Recommended Stack
+
+For true 3D on React Native, use **`@react-three/fiber`** and **`expo-gl`**. If a simpler isometric 2D view is preferred, **`react-native-skia`** or standard `react-native-reanimated` SVGs with orthographic projection mathematics can be used.
+
+### Implementation Blueprint (`react-three-fiber`)
+
+1. **Install Dependencies:**
+
+```bash
+npm install three @react-three/fiber @react-three/drei expo-gl
+```
+
+2. **Parsing Model Coordinates:**
+   The backend coordinates (`x_coordinate`, `z_coordinate`) define the position on the floor plan. The `y_coordinate` represents the vertical height off the ground (e.g. shelf tier).
+
+3. **React Native Component Boilerplate:**
+
+```tsx
+import React, { useMemo } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Box } from '@react-three/drei';
+
+type API_Location = {
+  id: string;
+  name: string;
+  x_coordinate: number;
+  y_coordinate: number;
+  z_coordinate: number;
+  width: number;
+  height: number;
+  depth: number;
+};
+
+const StoreShelf = ({ location }: { location: API_Location }) => {
+  // Convert API dimensions (e.g. cm) to Three.js units (e.g. meters)
+  const scale = 0.01;
+  const position = useMemo(
+    () => [
+      location.x_coordinate * scale,
+      location.y_coordinate * scale,
+      location.z_coordinate * scale,
+    ],
+    [location],
+  );
+
+  const geometry = useMemo(
+    () => [
+      location.width * scale,
+      location.height * scale,
+      location.depth * scale,
+    ],
+    [location],
+  );
+
+  return (
+    <Box position={position} args={geometry}>
+      <meshStandardMaterial color={0x808080} transparent opacity={0.8} />
+    </Box>
+  );
+};
+
+export const StoreMap3D = ({ locations }) => {
+  return (
+    <Canvas camera={{ position: [5, 5, 5], fov: 50 }}>
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 10, 5]} intensity={1} />
+
+      {locations.map((loc) => (
+        <StoreShelf key={loc.id} location={loc} />
+      ))}
+
+      <OrbitControls enablePan enableZoom />
+    </Canvas>
+  );
+};
+```
+
+_(Note for AI Agent: Implement smooth camera panning (`react-spring/three`) towards a specific shelf when a user searches for a specific product!)_
+
+---
+
+## 📡 API Reference
 
 ### 1. List Locations
 
 Retrieves a list of all locations.
 
-**Request:**
-`GET /api/v1/locations`
-
-**Headers:**
-`Authorization: Bearer <token>`
+**Request:** `GET /api/v1/locations`
 
 **Response (200 OK):**
 
@@ -31,8 +125,8 @@ Retrieves a list of all locations.
       "width": 120.0,
       "depth": 40.0,
       "height": 180.0,
-      "created_at": "2026-03-19T10:00:00Z",
-      "updated_at": "2026-03-19T10:00:00Z"
+      "created_at": "timestamp",
+      "updated_at": "timestamp"
     }
   ],
   "meta": {
@@ -43,14 +137,9 @@ Retrieves a list of all locations.
 
 ### 2. Create Location
 
-Creates a new physical or logical store location.
+Creates a new physical store location.
 
-**Request:**
-`POST /api/v1/locations`
-
-**Headers:**
-`Authorization: Bearer <token>`
-`Content-Type: application/json`
+**Request:** `POST /api/v1/locations`
 
 **Body:**
 
@@ -73,23 +162,11 @@ Creates a new physical or logical store location.
 {
   "success": true,
   "message": "Location created successfully",
-  "data": {
-    "id": "123e4567-e89b-12d3-a456-426614174001",
-    "name": "Chiller Minuman A",
-    "category": "Chiller",
-    "x_coordinate": 2.5,
-    "y_coordinate": 0.0,
-    "z_coordinate": 1.5,
-    "width": 60.0,
-    "depth": 60.0,
-    "height": 200.0,
-    "created_at": "2026-03-19T10:15:00Z",
-    "updated_at": "2026-03-19T10:15:00Z"
-  }
+  "data": { ... }
 }
 ```
 
-**Error Response (400 Bad Request - Missing required fields):**
+**Error Response (400 Bad Request):**
 
 ```json
 {
@@ -99,25 +176,14 @@ Creates a new physical or logical store location.
 
 ### 3. Get Location Detail
 
-Retrieves the details of a single location.
-
-**Request:**
-`GET /api/v1/locations/{id}`
-
-**Headers:**
-`Authorization: Bearer <token>`
+**Request:** `GET /api/v1/locations/{id}`
 
 **Response (200 OK):**
 
 ```json
 {
   "success": true,
-  "message": "Location retrieved successfully",
-  "data": {
-    "id": "123e4567-e89b-12d3-a456-426614174001",
-    "name": "Chiller Minuman A",
-    ...
-  }
+  "data": { ... }
 }
 ```
 
@@ -126,29 +192,19 @@ Retrieves the details of a single location.
 ```json
 {
   "success": false,
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "Location not found"
-  }
+  "error": { "code": "NOT_FOUND", "message": "Location not found" }
 }
 ```
 
 ### 4. Update Location
 
-Updates an existing location's properties. All fields are optional.
+**Request:** `PUT /api/v1/locations/{id}`
 
-**Request:**
-`PUT /api/v1/locations/{id}`
-
-**Headers:**
-`Authorization: Bearer <token>`
-`Content-Type: application/json`
-
-**Body:**
+**Body:** (All optional)
 
 ```json
 {
-  "name": "Chiller Minuman B",
+  "name": "Chiller B",
   "x_coordinate": 3.0
 }
 ```
@@ -159,13 +215,7 @@ Updates an existing location's properties. All fields are optional.
 {
   "success": true,
   "message": "Location updated successfully",
-  "data": {
-    "id": "123e4567-e89b-12d3-a456-426614174001",
-    "name": "Chiller Minuman B",
-    "category": "Chiller",
-    "x_coordinate": 3.0,
-    ...
-  }
+  "data": { ... }
 }
 ```
 
@@ -174,34 +224,21 @@ Updates an existing location's properties. All fields are optional.
 ```json
 {
   "success": false,
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "Location not found"
-  }
+  "error": { "code": "NOT_FOUND", "message": "Location not found" }
 }
 ```
 
 ### 5. Delete Location
 
-Deletes a location and implicitly unlinks any products associated with it.
+**Request:** `DELETE /api/v1/locations/{id}`
 
-**Request:**
-`DELETE /api/v1/locations/{id}`
-
-**Headers:**
-`Authorization: Bearer <token>`
-
-**Response (204 No Content):**
-_(No body)_
+**Response (204 No Content):** _(No body)_
 
 **Error Response (404 Not Found):**
 
 ```json
 {
   "success": false,
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "Location not found"
-  }
+  "error": { "code": "NOT_FOUND", "message": "Location not found" }
 }
 ```
