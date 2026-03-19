@@ -20,10 +20,10 @@ import (
 func getTestDBConfig() *config.DatabaseConfig {
 	return &config.DatabaseConfig{
 		Host:            getEnv("TEST_DB_HOST", "localhost"),
-		Port:            getEnv("TEST_DB_PORT", "5432"),
-		User:            getEnv("TEST_DB_USER", "postgres"),
-		Password:        getEnv("TEST_DB_PASSWORD", "postgres"),
-		DBName:          getEnv("TEST_DB_NAME", "warung_db"),
+		Port:            getEnv("TEST_DB_PORT", "5433"),
+		User:            getEnv("TEST_DB_USER", "warung"),
+		Password:        getEnv("TEST_DB_PASSWORD", "warung_secret"),
+		DBName:          getEnv("TEST_DB_NAME", "warung_test"),
 		SSLMode:         "disable",
 		MaxOpenConns:    10,
 		MaxIdleConns:    5,

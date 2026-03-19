@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/eveeze/warung-backend/internal/platform/queue"
@@ -11,8 +12,12 @@ import (
 // TestNotificationFlow verifies that NotificationService enqueues tasks correctly
 func TestNotificationFlow(t *testing.T) {
 	// 1. Setup Redis Connection
-	// Assuming default localhost:6379 as per user config
-	redisAddr := "127.0.0.1:6379"
+	// Assuming default localhost:6380 for test-auto
+	redisPort := os.Getenv("REDIS_PORT")
+	if redisPort == "" {
+		redisPort = "6380"
+	}
+	redisAddr := "127.0.0.1:" + redisPort
 	
 	// Check if Redis is reachable (skip if not)
 	r := asynq.RedisClientOpt{Addr: redisAddr}

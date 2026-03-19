@@ -51,13 +51,15 @@ class WarungAPITester:
             self.results.append(TestResult(name, TestStatus.PASS, duration))
             self.log(f"  {TestStatus.PASS.value} {name} ({duration:.0f}ms)")
         except AssertionError as e:
+            import traceback
             duration = (time.time() - start) * 1000
-            self.results.append(TestResult(name, TestStatus.FAIL, duration, str(e)))
-            self.log(f"  {TestStatus.FAIL.value} {name}: {e}")
+            self.results.append(TestResult(name, TestStatus.FAIL, duration, f"{e}\n{traceback.format_exc()}"))
+            self.log(f"  {TestStatus.FAIL.value} {name}: {e}\n{traceback.format_exc()}")
         except Exception as e:
+            import traceback
             duration = (time.time() - start) * 1000
-            self.results.append(TestResult(name, TestStatus.FAIL, duration, str(e)))
-            self.log(f"  {TestStatus.FAIL.value} {name}: {e}")
+            self.results.append(TestResult(name, TestStatus.FAIL, duration, f"{e}\n{traceback.format_exc()}"))
+            self.log(f"  {TestStatus.FAIL.value} {name}: {e}\n{traceback.format_exc()}")
     
     def get_headers(self) -> dict:
         headers = {"Content-Type": "application/json"}
@@ -296,6 +298,9 @@ class WarungAPITester:
     def test_transactions(self):
         self.log("\n💰 Transaction Tests")
         
+        # Ensure an active product exists since the previous test deleted it
+        self._test_create_product()
+        
         self.run_test("Cart calculation", self._test_cart_calculation)
         self.run_test("Create transaction (cash)", self._test_create_transaction)
         self.run_test("List transactions", self._test_list_transactions)
@@ -421,6 +426,70 @@ class WarungAPITester:
         )
         assert resp.status_code == 200
     
+    # ==================== LOCATION TESTS ====================
+    
+    def test_locations(self):
+        self.log("\n📍 Location Tests")
+        
+        self.run_test("Create location", self._test_create_location)
+        self.run_test("List locations", self._test_list_locations)
+        self.run_test("Update location", self._test_update_location)
+        self.run_test("Delete location", self._test_delete_location)
+        
+    def _test_create_location(self):
+        loc_data = {
+            "name": f"Aisle {int(time.time() % 100)}",
+            "category": "shelf",
+            "width": 2.5,
+            "depth": 10.0,
+            "height": 3.0,
+            "x_coordinate": 0.0,
+            "y_coordinate": 5.0,
+            "z_coordinate": 0.0,
+        }
+        
+        resp = requests.post(
+            f"{self.api_url}/locations",
+            json=loc_data,
+            headers=self.get_headers(),
+            timeout=10
+        )
+        assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.text}"
+        self.test_data["location_id"] = resp.json()["data"]["id"]
+        
+    def _test_list_locations(self):
+        resp = requests.get(
+            f"{self.api_url}/locations",
+            headers=self.get_headers(),
+            timeout=10
+        )
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+        
+    def _test_update_location(self):
+        loc_id = self.test_data.get("location_id")
+        if not loc_id:
+            raise AssertionError("No location_id available")
+            
+        resp = requests.put(
+            f"{self.api_url}/locations/{loc_id}",
+            json={"width": 3.0, "name": "Updated Aisle"},
+            headers=self.get_headers(),
+            timeout=10
+        )
+        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
+        
+    def _test_delete_location(self):
+        loc_id = self.test_data.get("location_id")
+        if not loc_id:
+            raise AssertionError("No location_id available")
+            
+        resp = requests.delete(
+            f"{self.api_url}/locations/{loc_id}",
+            headers=self.get_headers(),
+            timeout=10
+        )
+        assert resp.status_code == 204, f"Expected 204, got {resp.status_code}"
+
     # ==================== RUN ALL ====================
     
     def run_all(self):
@@ -436,6 +505,7 @@ class WarungAPITester:
         self.test_transactions()
         self.test_reports()
         self.test_kasbon()
+        self.test_locations()
         
         duration = time.time() - start
         

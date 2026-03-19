@@ -77,8 +77,25 @@ docker-logs:
 docker-build:
 	@$(DOCKER_COMPOSE) build
 
-docker-dev:
-	@$(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up
+dev-up:
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml up -d
+	@echo "Development infrastructure started."
+
+dev-down:
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml down
+	@echo "Development infrastructure stopped."
+
+test-auto:
+	@echo "Starting test infrastructure..."
+	@$(DOCKER_COMPOSE) -f docker-compose.test.yml up -d
+	@echo "Waiting for test database..."
+	@sleep 3
+	@echo "Running database migrations..."
+	@DB_PORT=5433 DB_NAME=warung_test DB_USER=warung DB_PASSWORD=warung_secret go run ./cmd/api migrate up
+	@echo "Running automated integration tests..."
+	@DB_PORT=5433 DB_NAME=warung_test DB_USER=warung DB_PASSWORD=warung_secret REDIS_PORT=6380 TEST_DATABASE_URL="postgres://warung:warung_secret@localhost:5433/warung_test?sslmode=disable" go test -v ./...
+	@echo "Tearing down test infrastructure..."
+	@$(DOCKER_COMPOSE) -f docker-compose.test.yml down
 
 # Database migrations
 migrate-up:

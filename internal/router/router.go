@@ -39,6 +39,7 @@ func New(
 	consignmentRepo := repository.NewConsignmentRepository(db)
 	refillableRepo := repository.NewRefillableRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
+	locationRepo := repository.NewLocationRepository(db)
 
 	// Initialize infrastructure
 	notificationRepo := repository.NewNotificationRepository(db)
@@ -84,6 +85,7 @@ func New(
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
 	eventHandler := handler.NewEventHandler(eventSvc)
 	notificationHandler := handler.NewNotificationHandler(notificationSvc)
+	locationHandler := handler.NewLocationHandler(locationRepo)
 
 	// Public handler (no auth required) for landing page
 	publicHandler := handler.NewPublicHandler(productRepo, categoryRepo, cacheSvc)
@@ -198,6 +200,13 @@ func New(
 	mux.HandleFunc("POST "+apiPrefix+"/categories", adminOnly(categoryHandler.Create))
 	mux.HandleFunc("PUT "+apiPrefix+"/categories/{id}", adminOnly(categoryHandler.Update))
 	mux.HandleFunc("DELETE "+apiPrefix+"/categories/{id}", adminOnly(categoryHandler.Delete))
+
+	// Locations
+	mux.HandleFunc("GET "+apiPrefix+"/locations", protected(locationHandler.ListAll))
+	mux.HandleFunc("GET "+apiPrefix+"/locations/{id}", protected(locationHandler.GetByID))
+	mux.HandleFunc("POST "+apiPrefix+"/locations", adminOnly(locationHandler.Create))
+	mux.HandleFunc("PUT "+apiPrefix+"/locations/{id}", adminOnly(locationHandler.Update))
+	mux.HandleFunc("DELETE "+apiPrefix+"/locations/{id}", adminOnly(locationHandler.Delete))
 
 	// Reports
 	mux.HandleFunc("GET "+apiPrefix+"/reports/daily", adminOnly(reportHandler.GetDailyReport))

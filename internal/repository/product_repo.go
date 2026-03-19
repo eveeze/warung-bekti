@@ -53,11 +53,11 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 
 	query := `
 		INSERT INTO products (
-			barcode, sku, name, description, category_id, consignor_id, unit,
+			barcode, sku, name, description, category_id, location_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-		RETURNING id, barcode, sku, name, description, category_id, consignor_id, unit,
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		RETURNING id, barcode, sku, name, description, category_id, location_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 	`
@@ -65,12 +65,12 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 	var product domain.Product
 	err := r.db.QueryRowContext(ctx, query,
 		input.Barcode, input.SKU, input.Name, input.Description,
-		input.CategoryID, input.ConsignorID, input.Unit, input.BasePrice, input.CostPrice,
+		input.CategoryID, input.LocationID, input.ConsignorID, input.Unit, input.BasePrice, input.CostPrice,
 		isStockActive, currentStock, minStockAlert, input.MaxStock, input.ImageURL,
 		isActive,
 	).Scan(
 		&product.ID, &product.Barcode, &product.SKU, &product.Name,
-		&product.Description, &product.CategoryID, &product.ConsignorID, &product.Unit,
+		&product.Description, &product.CategoryID, &product.LocationID, &product.ConsignorID, &product.Unit,
 		&product.BasePrice, &product.CostPrice, &product.IsStockActive,
 		&product.CurrentStock, &product.MinStockAlert, &product.MaxStock,
 		&product.ImageURL, &product.IsActive, &product.CreatedAt, &product.UpdatedAt,
@@ -91,13 +91,18 @@ func (r *ProductRepository) Create(ctx context.Context, input domain.ProductCrea
 		product.PricingTiers, _ = r.GetPricingTiers(ctx, product.ID)
 	}
 
+	if product.LocationID != nil {
+		locs, _ := r.GetLocationsBatch(ctx, []uuid.UUID{*product.LocationID})
+		product.Location = locs[*product.LocationID]
+	}
+
 	return &product, nil
 }
 
 // GetByID retrieves a product by ID
 func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
 	query := `
-		SELECT id, barcode, sku, name, description, category_id, consignor_id, unit,
+		SELECT id, barcode, sku, name, description, category_id, location_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
@@ -107,7 +112,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.
 	var product domain.Product
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&product.ID, &product.Barcode, &product.SKU, &product.Name,
-		&product.Description, &product.CategoryID, &product.ConsignorID, &product.Unit,
+		&product.Description, &product.CategoryID, &product.LocationID, &product.ConsignorID, &product.Unit,
 		&product.BasePrice, &product.CostPrice, &product.IsStockActive,
 		&product.CurrentStock, &product.MinStockAlert, &product.MaxStock,
 		&product.ImageURL, &product.IsActive, &product.CreatedAt, &product.UpdatedAt,
@@ -122,13 +127,18 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.
 	// Load pricing tiers
 	product.PricingTiers, _ = r.GetPricingTiers(ctx, product.ID)
 
+	if product.LocationID != nil {
+		locs, _ := r.GetLocationsBatch(ctx, []uuid.UUID{*product.LocationID})
+		product.Location = locs[*product.LocationID]
+	}
+
 	return &product, nil
 }
 
 // GetByBarcode retrieves a product by barcode
 func (r *ProductRepository) GetByBarcode(ctx context.Context, barcode string) (*domain.Product, error) {
 	query := `
-		SELECT id, barcode, sku, name, description, category_id, consignor_id, unit,
+		SELECT id, barcode, sku, name, description, category_id, location_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
@@ -138,7 +148,7 @@ func (r *ProductRepository) GetByBarcode(ctx context.Context, barcode string) (*
 	var product domain.Product
 	err := r.db.QueryRowContext(ctx, query, barcode).Scan(
 		&product.ID, &product.Barcode, &product.SKU, &product.Name,
-		&product.Description, &product.CategoryID, &product.ConsignorID, &product.Unit,
+		&product.Description, &product.CategoryID, &product.LocationID, &product.ConsignorID, &product.Unit,
 		&product.BasePrice, &product.CostPrice, &product.IsStockActive,
 		&product.CurrentStock, &product.MinStockAlert, &product.MaxStock,
 		&product.ImageURL, &product.IsActive, &product.CreatedAt, &product.UpdatedAt,
@@ -151,6 +161,11 @@ func (r *ProductRepository) GetByBarcode(ctx context.Context, barcode string) (*
 	}
 
 	product.PricingTiers, _ = r.GetPricingTiers(ctx, product.ID)
+
+	if product.LocationID != nil {
+		locs, _ := r.GetLocationsBatch(ctx, []uuid.UUID{*product.LocationID})
+		product.Location = locs[*product.LocationID]
+	}
 
 	return &product, nil
 }
@@ -238,7 +253,7 @@ func (r *ProductRepository) List(ctx context.Context, filter domain.ProductFilte
 
 	// Main query
 	query := fmt.Sprintf(`
-		SELECT id, barcode, sku, name, description, category_id, consignor_id, unit,
+		SELECT id, barcode, sku, name, description, category_id, location_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
@@ -255,11 +270,11 @@ func (r *ProductRepository) List(ctx context.Context, filter domain.ProductFilte
 	}
 	defer rows.Close()
 
-	var products []domain.Product
+	products := make([]domain.Product, 0)
 	for rows.Next() {
 		var p domain.Product
 		if err := rows.Scan(
-			&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.ConsignorID,
+			&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.LocationID, &p.ConsignorID,
 			&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
 			&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
@@ -268,17 +283,24 @@ func (r *ProductRepository) List(ctx context.Context, filter domain.ProductFilte
 		products = append(products, p)
 	}
 
-	// Load pricing tiers for all products in batch (fixes N+1 query)
+	// Load pricing tiers and locations in batch (fixes N+1 query)
 	if len(products) > 0 {
 		productIDs := make([]uuid.UUID, len(products))
+		var locIDs []uuid.UUID
 		for i, p := range products {
 			productIDs[i] = p.ID
+			if p.LocationID != nil {
+				locIDs = append(locIDs, *p.LocationID)
+			}
 		}
 
-		tiersMap, err := r.GetPricingTiersBatch(ctx, productIDs)
-		if err == nil {
-			for i := range products {
-				products[i].PricingTiers = tiersMap[products[i].ID]
+		tiersMap, _ := r.GetPricingTiersBatch(ctx, productIDs)
+		locsMap, _ := r.GetLocationsBatch(ctx, locIDs)
+		
+		for i := range products {
+			products[i].PricingTiers = tiersMap[products[i].ID]
+			if products[i].LocationID != nil {
+				products[i].Location = locsMap[*products[i].LocationID]
 			}
 		}
 	}
@@ -330,6 +352,11 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 	if input.CategoryID != nil {
 		setClauses = append(setClauses, fmt.Sprintf("category_id = $%d", argIndex))
 		args = append(args, input.CategoryID)
+		argIndex++
+	}
+	if input.LocationID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("location_id = $%d", argIndex))
+		args = append(args, input.LocationID)
 		argIndex++
 	}
 	if input.ConsignorID != nil {
@@ -390,7 +417,7 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 		UPDATE products
 		SET %s
 		WHERE id = $%d
-		RETURNING id, barcode, sku, name, description, category_id, consignor_id, unit,
+		RETURNING id, barcode, sku, name, description, category_id, location_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 	`, strings.Join(setClauses, ", "), argIndex)
@@ -399,7 +426,7 @@ func (r *ProductRepository) Update(ctx context.Context, id uuid.UUID, input doma
 
 	var p domain.Product
 	err = r.db.QueryRowContext(ctx, query, args...).Scan(
-		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.ConsignorID,
+		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.LocationID, &p.ConsignorID,
 		&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
 		&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
@@ -418,14 +445,14 @@ func (r *ProductRepository) ToggleActive(ctx context.Context, id uuid.UUID) (*do
 		UPDATE products
 		SET is_active = NOT is_active, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, barcode, sku, name, description, category_id, consignor_id, unit,
+		RETURNING id, barcode, sku, name, description, category_id, location_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 	`
 
 	var p domain.Product
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.ConsignorID,
+		&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.LocationID, &p.ConsignorID,
 		&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
 		&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 	)
@@ -487,7 +514,7 @@ func (r *ProductRepository) Delete(ctx context.Context, id uuid.UUID) error {
 // GetLowStockProducts gets products below minimum stock level
 func (r *ProductRepository) GetLowStockProducts(ctx context.Context) ([]domain.LowStockProduct, error) {
 	query := `
-		SELECT id, barcode, sku, name, description, category_id, consignor_id, unit,
+		SELECT id, barcode, sku, name, description, category_id, location_id, consignor_id, unit,
 			base_price, cost_price, is_stock_active, current_stock,
 			min_stock_alert, max_stock, image_url, is_active, created_at, updated_at
 		FROM products
@@ -507,7 +534,7 @@ func (r *ProductRepository) GetLowStockProducts(ctx context.Context) ([]domain.L
 	for rows.Next() {
 		var p domain.Product
 		if err := rows.Scan(
-			&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.ConsignorID,
+			&p.ID, &p.Barcode, &p.SKU, &p.Name, &p.Description, &p.CategoryID, &p.LocationID, &p.ConsignorID,
 			&p.Unit, &p.BasePrice, &p.CostPrice, &p.IsStockActive, &p.CurrentStock,
 			&p.MinStockAlert, &p.MaxStock, &p.ImageURL, &p.IsActive, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
@@ -518,6 +545,22 @@ func (r *ProductRepository) GetLowStockProducts(ctx context.Context) ([]domain.L
 			Product:       p,
 			DeficitAmount: p.MinStockAlert - p.CurrentStock,
 		})
+	}
+
+	// Load locations in batch
+	var locIDs []uuid.UUID
+	for i := range results {
+		if results[i].Product.LocationID != nil {
+			locIDs = append(locIDs, *results[i].Product.LocationID)
+		}
+	}
+	if len(locIDs) > 0 {
+		locsMap, _ := r.GetLocationsBatch(ctx, locIDs)
+		for i := range results {
+			if results[i].Product.LocationID != nil {
+				results[i].Product.Location = locsMap[*results[i].Product.LocationID]
+			}
+		}
 	}
 
 	return results, rows.Err()
@@ -840,4 +883,58 @@ func (r *ProductRepository) DeletePricingTier(ctx context.Context, tierID uuid.U
 	}
 	
 	return nil
+}
+
+// GetLocationsBatch retrieves locations for multiple IDs in a single query
+func (r *ProductRepository) GetLocationsBatch(ctx context.Context, locationIDs []uuid.UUID) (map[uuid.UUID]*domain.Location, error) {
+	if len(locationIDs) == 0 {
+		return make(map[uuid.UUID]*domain.Location), nil
+	}
+
+	// Deduplicate IDs
+	uniqueIDs := make(map[uuid.UUID]bool)
+	var filteredIDs []uuid.UUID
+	for _, id := range locationIDs {
+		if !uniqueIDs[id] {
+			uniqueIDs[id] = true
+			filteredIDs = append(filteredIDs, id)
+		}
+	}
+
+	placeholders := make([]string, len(filteredIDs))
+	args := make([]interface{}, len(filteredIDs))
+	for i, id := range filteredIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+		SELECT id, name, category, x_coordinate, y_coordinate, z_coordinate,
+			width, depth, height, description, is_active, created_at, updated_at
+		FROM locations
+		WHERE id IN (%s) AND is_active = true
+	`, strings.Join(placeholders, ","))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get locations batch: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[uuid.UUID]*domain.Location)
+	for rows.Next() {
+		var loc domain.Location
+		if err := rows.Scan(
+			&loc.ID, &loc.Name, &loc.Category,
+			&loc.XCoordinate, &loc.YCoordinate, &loc.ZCoordinate,
+			&loc.Width, &loc.Depth, &loc.Height,
+			&loc.Description, &loc.IsActive, &loc.CreatedAt, &loc.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan location: %w", err)
+		}
+		locCopy := loc // Avoid pointer to loop variable issue
+		result[loc.ID] = &locCopy
+	}
+
+	return result, rows.Err()
 }

@@ -15,6 +15,7 @@ type Product struct {
 	Name          string     `json:"name"`
 	Description   *string    `json:"description,omitempty"`
 	CategoryID    *uuid.UUID `json:"category_id,omitempty"`
+	LocationID    *uuid.UUID `json:"location_id,omitempty"`
 	ConsignorID   *uuid.UUID `json:"consignor_id,omitempty"` // Added ConsignorID
 	Unit          string     `json:"unit"`
 	BasePrice     int64      `json:"base_price"`      // harga jual dasar (rupiah)
@@ -33,6 +34,7 @@ type Product struct {
 
 	// Relations (populated when needed)
 	Category     *Category      `json:"category,omitempty"`
+	Location     *Location      `json:"location,omitempty"`
 	PricingTiers []PricingTier  `json:"pricing_tiers,omitempty"`
 }
 
@@ -125,6 +127,7 @@ type ProductCreateInput struct {
 	Name          string             `json:"name"`
 	Description   *string            `json:"description,omitempty"`
 	CategoryID    *uuid.UUID         `json:"category_id,omitempty"`
+	LocationID    *uuid.UUID         `json:"location_id,omitempty"`
 	ConsignorID   *uuid.UUID         `json:"consignor_id,omitempty"` // Added ConsignorID
 	Unit          string             `json:"unit"`
 	BasePrice     int64              `json:"base_price"`
@@ -148,6 +151,7 @@ type ProductUpdateInput struct {
 	Name          *string    `json:"name,omitempty"`
 	Description   *string    `json:"description,omitempty"`
 	CategoryID    *uuid.UUID `json:"category_id,omitempty"`
+	LocationID    *uuid.UUID `json:"location_id,omitempty"`
 	ConsignorID   *uuid.UUID `json:"consignor_id,omitempty"` // Added ConsignorID
 	Unit          *string    `json:"unit,omitempty"`
 	BasePrice     *int64     `json:"base_price,omitempty"`
@@ -174,6 +178,7 @@ type PricingTierInput struct {
 type ProductFilter struct {
 	Search        *string    `json:"search,omitempty"`
 	CategoryID    *uuid.UUID `json:"category_id,omitempty"`
+	LocationID    *uuid.UUID `json:"location_id,omitempty"`
 	ConsignorID   *uuid.UUID `json:"consignor_id,omitempty"` // Added ConsignorID
 	IsActive      *bool      `json:"is_active,omitempty"`
 	IsStockActive *bool      `json:"is_stock_active,omitempty"`
