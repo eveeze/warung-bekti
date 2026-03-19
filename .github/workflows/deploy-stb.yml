@@ -24,15 +24,29 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o warung-api ./cmd/api
 
-      - name: 🚀 Connect to Tailscale (with Retry)
-        uses: Wandalen/wretry.action@v3.8.0
+      - name: 🚀 Connect to Tailscale (Attempt 1)
+        id: tailscale1
+        continue-on-error: true
+        uses: tailscale/github-action@v3
         with:
-          action: tailscale/github-action@v3
-          with: |
-            authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-            version: latest
-          attempt_limit: 5
-          attempt_delay: 5000
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          version: latest
+
+      - name: 🚀 Connect to Tailscale (Attempt 2)
+        if: steps.tailscale1.outcome == 'failure'
+        id: tailscale2
+        continue-on-error: true
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          version: latest
+
+      - name: 🚀 Connect to Tailscale (Final Attempt)
+        if: steps.tailscale2.outcome == 'failure'
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          version: latest
 
       - name: 🚚 Transfer Binary & Restart Docker on STB
         env:
