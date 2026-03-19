@@ -57,5 +57,6 @@ startup.sh
 bin/
 docker/Dockerfile.release
 *.sql
+!internal/database/migrations/*.sql
 *.zip
 warung-api
