@@ -124,11 +124,11 @@ func runServer() {
 	// But `make migrate-up` calls `go run main.go migrate up`, which now won't call `runServer`.
 	// So we are safe.
 	
-	// Optional: Auto-migrate on startup (can be disabled)
-	// migrator := database.NewMigrator(db)
-	// if err := migrator.Up(context.Background()); err != nil {
-	// 	logger.Fatal("Failed to run migrations: %v", err)
-	// }
+	// Auto-migrate on startup
+	migrator := database.NewMigrator(db)
+	if err := migrator.Up(context.Background()); err != nil {
+		logger.Fatal("Failed to run migrations: %v", err)
+	}
 
 	// Connect to Redis
 	redis, err := database.NewRedis(&cfg.Redis)

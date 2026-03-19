@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
+	"github.com/eveeze/warung-backend/internal/domain"
 	"github.com/eveeze/warung-backend/internal/pkg/response"
 	"github.com/eveeze/warung-backend/internal/repository"
 	"github.com/eveeze/warung-backend/internal/service"
@@ -151,7 +153,11 @@ func (h *PublicHandler) GetProduct(w http.ResponseWriter, r *http.Request) {
 
 	product, err := h.productRepo.GetByID(r.Context(), id)
 	if err != nil {
-		response.NotFound(w, "Product not found")
+		if errors.Is(err, domain.ErrNotFound) {
+			response.NotFound(w, "Product not found")
+		} else {
+			response.InternalServerError(w, "Failed to retrieve product details")
+		}
 		return
 	}
 
