@@ -1,0 +1,74 @@
+name: Deploy API to STB
+
+on:
+  push:
+    branches:
+      - main # Workflow akan otomatis berjalan setiap kali ada push ke branch main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22' # Sesuaikan dengan versi Go di go.mod kamu
+
+      - name: 🔨 Build Binary (linux/arm64)
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o warung-api ./cmd/api
+
+      - name: 🚀 Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          version: latest
+
+      - name: 🚚 Transfer Binary & Restart Docker on STB
+        env:
+          STB_IP: '100.115.147.87'
+          STB_USER: 'root'
+          SSH_PRIVATE_KEY: ${{ secrets.STB_SSH_KEY }}
+        run: |
+          # 1. Bikin folder untuk tempat kunci SSH di server GitHub (Cloud)
+          mkdir -p ~/.ssh
+
+          # 2. Masukkan Private Key rahasia dari GitHub Secret ke file id_ed25519
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+
+          # 3. Amankan file key (WAJIB chmod 600, kalau tidak SSH akan menolak kuncinya)
+          chmod 600 ~/.ssh/id_ed25519
+
+          # 4. Matikan checking host key agar GitHub Actions tidak tertahan konfirmasi "Are you sure you want to continue connecting (yes/no)?"
+          cat >>~/.ssh/config <<END
+          Host $STB_IP
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+          END
+
+          # 5. SCP: Mengirim file binary dari server GitHub ke STB
+          echo "-> Mengirim file binary ke STB..."
+          scp warung-api $STB_USER@$STB_IP:~/warung-bekti/warung-api
+
+          # 6. SSH: Masuk ke STB dan jalankan perintah Docker
+          echo "-> Menjalankan instruksi deploy di STB..."
+          ssh $STB_USER@$STB_IP << 'EOF'
+            cd ~/warung-bekti || exit
+            git pull origin main
+            chmod +x warung-api
+            
+            # Rebuild docker dari binary lokal
+            docker build -t warung-api:latest -f docker/Dockerfile.release .
+            
+            # Restart services
+            docker compose down
+            docker compose up -d
+            
+            # Bersihkan cache dan file temporary
+            docker image prune -f
+            rm warung-api
+          EOF
