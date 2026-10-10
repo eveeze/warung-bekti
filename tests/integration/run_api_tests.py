@@ -298,6 +298,14 @@ class WarungAPITester:
     def test_transactions(self):
         self.log("\n💰 Transaction Tests")
         
+        # Ensure drawer is open for cash transaction
+        requests.post(
+            f"{self.api_url}/cashflow/drawer/open",
+            json={"opening_balance": 100000, "notes": "Modal awal test"},
+            headers=self.get_headers(),
+            timeout=10
+        )
+
         # Ensure an active product exists since the previous test deleted it
         self._test_create_product()
         

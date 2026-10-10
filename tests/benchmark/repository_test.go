@@ -19,11 +19,11 @@ import (
 // Test configuration - uses environment variables or defaults
 func getTestDBConfig() *config.DatabaseConfig {
 	return &config.DatabaseConfig{
-		Host:            getEnv("TEST_DB_HOST", "localhost"),
-		Port:            getEnv("TEST_DB_PORT", "5433"),
-		User:            getEnv("TEST_DB_USER", "warung"),
-		Password:        getEnv("TEST_DB_PASSWORD", "warung_secret"),
-		DBName:          getEnv("TEST_DB_NAME", "warung_test"),
+		Host:            getEnv("TEST_DB_HOST", getEnv("DB_HOST", "127.0.0.1")),
+		Port:            getEnv("TEST_DB_PORT", getEnv("DB_PORT", "5435")),
+		User:            getEnv("TEST_DB_USER", getEnv("DB_USER", "warung")),
+		Password:        getEnv("TEST_DB_PASSWORD", getEnv("DB_PASSWORD", "warung_secret")),
+		DBName:          getEnv("TEST_DB_NAME", getEnv("DB_NAME", "warung_db")),
 		SSLMode:         "disable",
 		MaxOpenConns:    10,
 		MaxIdleConns:    5,

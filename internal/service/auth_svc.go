@@ -72,6 +72,11 @@ func (s *AuthService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 		return nil, errors.New("invalid credentials")
 	}
 
+	// Check if user is active
+	if !user.IsActive {
+		return nil, errors.New("user is inactive")
+	}
+
 	// Update last login
 	if err := s.userRepo.UpdateLastLogin(ctx, user.ID); err != nil {
 		// Log error but continue

@@ -1,31 +1,39 @@
-version: '3.8'
-
 # Testing Docker Infrastructure (Standalone & Ephemeral)
 # Designed specifically for automated integration testing pipeline
 
 services:
   # PostgreSQL Database exclusively for automated test runs
   postgres-test:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: warung-postgres-test
     environment:
       POSTGRES_USER: warung
       POSTGRES_PASSWORD: warung_secret
       POSTGRES_DB: warung_test
-    # Map to port 5433 to prevent clashing with the dev database on port 5432
+    # Dedicated test port, separate from development and other local projects
     ports:
-      - '5433:5432'
+      - '127.0.0.1:5436:5432'
     # No volume persistence - completely ephemeral per test run
     tmpfs:
       - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
 
   # Redis Cache for automated tests
   redis-test:
-    image: redis:5-alpine
+    image: redis:7-alpine
     container_name: warung-redis-test
     command: redis-server
     # Map to port 6380 to prevent clashing with dev redis 6379
     ports:
-      - '6380:6379'
+      - '127.0.0.1:6382:6379'
     tmpfs:
       - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

@@ -60,5 +60,7 @@ func LogAudit(ctx context.Context, auditRepo *repository.AuditRepository, action
 	
 	// Fire and forget (async) to not block response?
 	// or synchronous for strict audit? Synchronous is safer for money.
-	go auditRepo.Log(context.Background(), log)
+	if auditRepo != nil {
+		go auditRepo.Log(context.Background(), log)
+	}
 }

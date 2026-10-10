@@ -163,9 +163,16 @@ func (h *CashFlowHandler) RecordCashFlow(w http.ResponseWriter, r *http.Request)
 		username = claims.Username
 	}
 
+	cfType := domain.CashFlowType(req.Type)
+	if req.Type == "in" {
+		cfType = domain.CashFlowTypeIncome
+	} else if req.Type == "out" {
+		cfType = domain.CashFlowTypeExpense
+	}
+
 	input := domain.CashFlowInput{
 		CategoryID:  categoryID,
-		Type:        domain.CashFlowType(req.Type),
+		Type:        cfType,
 		Amount:      req.Amount,
 		Description: description,
 		CreatedBy:   username,

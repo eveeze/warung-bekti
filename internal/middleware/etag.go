@@ -22,9 +22,21 @@ func (w *etagResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 }
 
+func (w *etagResponseWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 // ETag adds ETag support to GET requests
 func ETag(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Bypass streaming endpoints like SSE
+		if r.URL.Path == "/api/v1/events" || strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Intercept response for all methods to generate ETag
 		ew := &etagResponseWriter{
 			ResponseWriter: w,

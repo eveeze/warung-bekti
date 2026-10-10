@@ -3,7 +3,9 @@
 # Variables
 BINARY_NAME=warung-api
 MAIN_PATH=./cmd/api
-DOCKER_COMPOSE=docker-compose
+DOCKER_COMPOSE=docker compose
+AIR_VERSION=v1.61.7
+AIR=$(CURDIR)/bin/air
 
 # Help
 help:
@@ -12,6 +14,8 @@ help:
 	@echo "  make build          Build the application binary"
 	@echo "  make run            Run the application locally"
 	@echo "  make dev            Run with hot reload (requires air)"
+	@echo "  make setup-local    Prepare local env, infrastructure, migrations, and dev users"
+	@echo "  make seed-users     Create development users without importing Excel"
 	@echo "  make test           Run all tests"
 	@echo "  make test-coverage  Run tests with coverage report"
 	@echo "  make lint           Run linter"
@@ -40,17 +44,34 @@ run: build
 	@./bin/$(BINARY_NAME)
 
 # Development with hot reload
-dev:
-	@air -c .air.toml
+dev: $(AIR)
+	@$(AIR) -c .air.toml
+
+$(AIR):
+	@mkdir -p bin
+	@GOBIN=$(CURDIR)/bin go install github.com/air-verse/air@$(AIR_VERSION)
+
+.PHONY: env setup-local seed-users dev-up dev-down infra-up infra-down
+env:
+	@if [ ! -f .env ]; then (umask 077; cp .env.example .env); fi
+
+setup-local: env
+	@$(MAKE) dev-up
+	@$(MAKE) migrate-up
+	@$(MAKE) seed-users
+	@$(MAKE) $(AIR)
+	@echo "Local setup ready. Run: make dev"
 
 # Tests
 test:
 	@go test -v ./...
 
 test-coverage:
-	@go test -v -coverprofile=coverage.out ./...
+	@go test -coverpkg=./internal/... -coverprofile=coverage.raw ./internal/...
+	@python -c 'import sys; lines = open("coverage.raw").readlines(); blocks = {}; [blocks.update({l.rsplit(" ", 2)[0]: (int(l.rsplit(" ", 2)[1]), blocks.get(l.rsplit(" ", 2)[0], (0, 0))[1] + int(l.rsplit(" ", 2)[2]))}) for l in lines[1:] if len(l.rsplit(" ", 2)) == 3]; out = open("coverage.out", "w"); out.write(lines[0]); [out.write(f"{k} {v[0]} {v[1]}\n") for k, v in blocks.items()]; tot = sum(v[0] for v in blocks.values()); cov = sum(v[0] for v in blocks.values() if v[1] > 0); print(f"\n=========================================\nTOTAL STATEMENT COVERAGE: {cov}/{tot} ({cov/tot*100:.2f}%)\n=========================================\n")'
 	@go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report: coverage.html"
+	@rm -f coverage.raw
+	@echo "HTML coverage report generated: coverage.html"
 
 # Lint
 lint:
@@ -78,7 +99,7 @@ docker-build:
 	@$(DOCKER_COMPOSE) build
 
 dev-up:
-	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml up -d
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml up -d --wait
 	@echo "Development infrastructure started."
 
 dev-down:
@@ -86,16 +107,13 @@ dev-down:
 	@echo "Development infrastructure stopped."
 
 test-auto:
-	@echo "Starting test infrastructure..."
-	@$(DOCKER_COMPOSE) -f docker-compose.test.yml up -d
-	@echo "Waiting for test database..."
-	@sleep 3
-	@echo "Running database migrations..."
-	@DB_PORT=5433 DB_NAME=warung_test DB_USER=warung DB_PASSWORD=warung_secret go run ./cmd/api migrate up
-	@echo "Running automated integration tests..."
-	@DB_PORT=5433 DB_NAME=warung_test DB_USER=warung DB_PASSWORD=warung_secret REDIS_PORT=6380 TEST_DATABASE_URL="postgres://warung:warung_secret@localhost:5433/warung_test?sslmode=disable" go test -v ./...
-	@echo "Tearing down test infrastructure..."
-	@$(DOCKER_COMPOSE) -f docker-compose.test.yml down
+	@set -eu; \
+	trap '$(DOCKER_COMPOSE) -f docker-compose.test.yml down' EXIT; \
+	$(DOCKER_COMPOSE) -f docker-compose.test.yml up -d --wait; \
+	DB_HOST=127.0.0.1 DB_PORT=5436 DB_NAME=warung_test DB_USER=warung DB_PASSWORD=warung_secret DB_SSL_MODE=disable go run ./cmd/api migrate up; \
+	REDIS_PORT=6382 TEST_DATABASE_URL="postgres://warung:warung_secret@127.0.0.1:5436/warung_test?sslmode=disable" \
+	TEST_DB_HOST=127.0.0.1 TEST_DB_PORT=5436 TEST_DB_NAME=warung_test TEST_DB_USER=warung TEST_DB_PASSWORD=warung_secret \
+	go test -v ./...
 
 # Database migrations
 migrate-up:
@@ -118,9 +136,11 @@ tidy:
 seed:
 	@go run cmd/seeder/main.go
 
+seed-users:
+	@go run ./cmd/seeder --users-only
+
 # Install development tools
-tools:
-	@go install github.com/air-verse/air@latest
+tools: $(AIR)
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@echo "Development tools installed"
 
@@ -128,16 +148,11 @@ tools:
 generate:
 	@go generate ./...
 
-# Quick infrastructure setup (PostgreSQL, Redis, Minio only)
-infra-up:
-	@$(DOCKER_COMPOSE) up -d postgres redis minio
-	@echo "Infrastructure ready:"
-	@echo "  PostgreSQL: localhost:5432"
-	@echo "  Redis:      localhost:6379"
-	@echo "  Minio:      localhost:9000 (console: localhost:9001)"
+# Local development infrastructure
+infra-up: dev-up
 
 infra-down:
-	@$(DOCKER_COMPOSE) stop postgres redis minio
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml stop
 
 # Performance & Load Testing
 test-seed:
@@ -159,6 +174,10 @@ test-db-stress:
 test-api:
 	@echo "Running API integration tests..."
 	@python tests/integration/run_api_tests.py
+
+test-e2e:
+	@echo "Running Full End-to-End API tests (all features)..."
+	@python tests/integration/run_full_e2e.py
 
 test-bench:
 	@echo "Running Go benchmark tests..."

@@ -29,16 +29,14 @@ type R2Client struct {
 
 // NewR2 creates a new R2 connection
 func NewR2(cfg *appConfig.R2Config) (*R2Client, error) {
+	if cfg.AccountID == "" || cfg.AccessKeyID == "" || cfg.SecretAccessKey == "" {
+		return nil, fmt.Errorf("R2 credentials are not configured; image uploads are unavailable")
+	}
 	r2Resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			URL: fmt.Sprintf("https://%s.r2.cloudflarestorage.com", cfg.AccountID),
 		}, nil
 	})
-
-	// Debug credentials (print length only for safety)
-	fmt.Printf("DEBUG: R2 AccountID Len: %d\n", len(cfg.AccountID))
-	fmt.Printf("DEBUG: R2 AccessKeyID Len: %d\n", len(cfg.AccessKeyID))
-	fmt.Printf("DEBUG: R2 SecretAccessKey Len: %d\n", len(cfg.SecretAccessKey))
 
 	sdkConfig, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithEndpointResolverWithOptions(r2Resolver),
@@ -52,7 +50,7 @@ func NewR2(cfg *appConfig.R2Config) (*R2Client, error) {
 	client := s3.NewFromConfig(sdkConfig)
 
 	// Verify connection (optional but good practice)
-	// We skip strict verification here to startup faster, 
+	// We skip strict verification here to startup faster,
 	// but health check should verify it.
 	logger.Info("R2 client initialized for bucket: %s", cfg.BucketName)
 
@@ -99,7 +97,7 @@ func (r *R2Client) UploadImage(ctx context.Context, objectName string, originalR
 	// Since we are encoding to JPEG, we should always use .jpg
 	ext := filepath.Ext(objectName)
 	objectName = strings.TrimSuffix(objectName, ext) + ".jpg"
-	
+
 	// 5. Upload to R2
 	input := &s3.PutObjectInput{
 		Bucket:      aws.String(r.config.BucketName),
@@ -128,10 +126,10 @@ func (r *R2Client) GetPublicURL(objectName string) string {
 		// Assuming user has a domain map or similar.
 		return fmt.Sprintf("https://%s.r2.cloudflarestorage.com/%s/%s", r.config.AccountID, r.config.BucketName, objectName)
 	}
-	
+
 	// Remove trailing slash if present
 	baseURL = strings.TrimRight(baseURL, "/")
-	
+
 	// Ensure objectName doesn't have leading slash
 	objectName = strings.TrimLeft(objectName, "/")
 
@@ -142,20 +140,20 @@ func (r *R2Client) GetPublicURL(objectName string) string {
 func (r *R2Client) GetKeyFromURL(url string) (string, error) {
 	// Flexible extraction parsing not dependent on specific domain parts
 	// format: https://domain.com/products/file.jpg -> products/file.jpg
-	
+
 	// Split by protocol
 	parts := strings.Split(url, "://")
 	if len(parts) < 2 {
 		return "", fmt.Errorf("invalid url format")
 	}
-	
+
 	// Get path part (after the first slash following domain)
 	domainAndPath := parts[1]
 	slashIndex := strings.Index(domainAndPath, "/")
 	if slashIndex == -1 {
 		return "", fmt.Errorf("no path in url")
 	}
-	
+
 	key := domainAndPath[slashIndex+1:]
 	return key, nil
 }
@@ -172,5 +170,5 @@ func (r *R2Client) DeleteFile(ctx context.Context, objectName string) error {
 // GenerateProductImagePath generates a consistent path
 func GenerateProductImagePath(productID string) string {
 	// Using directory structure for organization
-	return fmt.Sprintf("products/%s.jpg", productID) 
+	return fmt.Sprintf("products/%s.jpg", productID)
 }

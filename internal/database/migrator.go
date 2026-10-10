@@ -6,6 +6,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -143,9 +144,8 @@ func (m *Migrator) LoadMigrationsFromDir(dir string) ([]Migration, error) {
 		version := nameParts[0]
 		name := baseName
 
-		content, err := fs.ReadFile(nil, path)
+		content, err := os.ReadFile(path)
 		if err != nil {
-			// Fallback to os.ReadFile for external files
 			continue
 		}
 

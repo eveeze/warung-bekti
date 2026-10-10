@@ -17,7 +17,15 @@ func TestLocationAndProductMapping(t *testing.T) {
 	// 1. Setup Database Connection (Integration Test)
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
-		dsn = "postgres://postgres:password@localhost:5433/warung_test?sslmode=disable"
+		port := os.Getenv("DB_PORT")
+		if port == "" {
+			port = "5435"
+		}
+		dbName := os.Getenv("DB_NAME")
+		if dbName == "" {
+			dbName = "warung_db"
+		}
+		dsn = "postgres://warung:warung_secret@127.0.0.1:" + port + "/" + dbName + "?sslmode=disable"
 	}
 	rawDB, err := sql.Open("postgres", dsn)
 	if err != nil {

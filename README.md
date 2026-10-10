@@ -1,6 +1,6 @@
 # WarungOS Backend
 
-Enterprise-grade backend untuk aplikasi kasir warung kelontong, dibangun dengan Golang vanilla (tanpa framework), PostgreSQL raw SQL, Redis, dan Minio.
+Backend untuk aplikasi kasir warung kelontong, dibangun dengan Golang vanilla (tanpa framework), PostgreSQL raw SQL, Redis, dan Cloudflare R2.
 
 ## Features
 
@@ -13,59 +13,79 @@ Enterprise-grade backend untuk aplikasi kasir warung kelontong, dibangun dengan 
 
 ## Tech Stack
 
-- **Language**: Go 1.22+
+- **Language**: Go 1.24+
 - **Database**: PostgreSQL 16 (raw SQL, no ORM)
 - **Cache**: Redis 7
-- **Object Storage**: Minio (S3-compatible)
+- **Object Storage**: Cloudflare R2 (opsional untuk development lokal)
 - **Containerization**: Docker & Docker Compose
 
 ## Quick Start
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.24+
 - Docker & Docker Compose
 - Make (optional)
 
-### 1. Clone & Setup
+### 1. Setup development lokal
 
 ```bash
-cd warung-backend
-cp .env.example .env
+make setup-local
 ```
 
-### 2. Start Infrastructure
+Perintah ini membuat `.env` jika belum ada, menyalakan PostgreSQL dan Redis lokal,
+menunggu keduanya siap, menjalankan migrasi, membuat akun development, dan memasang
+Air versi tetap ke `bin/air`. `.env` yang sudah ada tidak ditimpa. Kredensial database
+di Compose mengikuti `.env`; mengubahnya setelah volume dibuat memerlukan perubahan
+user/database di PostgreSQL juga.
+
+### 2. Jalankan API dengan hot reload
 
 ```bash
-# Start PostgreSQL, Redis, and Minio
-make infra-up
-
-# Or using Docker Compose directly
-docker-compose up -d postgres redis minio
-```
-
-### 3. Run Application
-
-```bash
-# Install dependencies
-go mod tidy
-
-# Run the API server
-go run ./cmd/api
-
-# Or with hot reload (install air first: go install github.com/air-verse/air@latest)
 make dev
 ```
 
-### 4. Using Docker (Full Stack)
+Alamat default:
+
+| Service | Alamat |
+| --- | --- |
+| API | `http://127.0.0.1:8080` |
+| PostgreSQL | `127.0.0.1:5435` |
+| Redis | `127.0.0.1:6381` |
+
+Akun development: `admin@warung.com`, `cashier@warung.com`, dan
+`inventory@warung.com`, semuanya dengan password `password`. Akun ini dibuat untuk
+database development lokal. Data STB/Aiven tidak otomatis disalin.
+
+### 3. Verifikasi dan kontrol service
 
 ```bash
-# Start all services including API
+curl http://127.0.0.1:8080/health
+make migrate-status
+make dev-down       # Hentikan infrastruktur; volume data tetap tersimpan
+make dev-up         # Nyalakan lagi
+make run            # Alternatif menjalankan API tanpa hot reload
+make test-auto      # Test dengan database/Redis terpisah di port 5436/6382
+```
+
+Upload gambar membutuhkan kredensial `R2_*` di `.env`; jika kosong, storage tidak
+diaktifkan dan fitur API lainnya bisa dikembangkan. Pembayaran Midtrans dan push
+notification OneSignal membutuhkan kredensial sandbox/akun development masing-masing.
+Untuk akses dari perangkat lain di jaringan lokal, ubah `SERVER_HOST=0.0.0.0` di `.env`
+dan gunakan IP LAN komputer sebagai base URL.
+
+### 4. Deployment saat ini (STB)
+
+```bash
+# Compose ini memakai .env.production dan image warung-api:latest
 make docker-up
 
 # View logs
 make docker-logs
 ```
+
+`docker-compose.yml` masih merupakan konfigurasi deployment STB dengan PostgreSQL
+eksternal dan R2. Development lokal menggunakan `docker-compose.dev.yml`.
 
 ## API Endpoints
 
@@ -155,8 +175,8 @@ warung-backend/
 ## Development
 
 ```bash
-# Run tests
-make test
+# Run tests with isolated local infrastructure
+make test-auto
 
 # Run with coverage
 make test-coverage

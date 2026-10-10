@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"strconv"
@@ -13,10 +14,14 @@ import (
 	"github.com/eveeze/warung-backend/internal/pkg/password"
 	"github.com/eveeze/warung-backend/internal/repository"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/xuri/excelize/v2"
 )
 
 func main() {
+	usersOnly := flag.Bool("users-only", false, "Seed development users without importing Excel")
+	flag.Parse()
+	_ = godotenv.Load()
 	// Load configuration
 	cfg := config.Load()
 
@@ -35,6 +40,9 @@ func main() {
 
 	// --- Seed Users ---
 	seedUsers(ctx, userRepo)
+	if *usersOnly {
+		return
+	}
 
 	// --- Seed Products from Excel ---
 	excelFile := "ipos_data.xlsx"
@@ -192,10 +200,10 @@ func seedProductsFromExcel(ctx context.Context, db *database.PostgresDB, product
 		name := getValue(row, "NAMA ITEM")
 		categoryName := getValue(row, "JENIS")
 		unit := getValue(row, "SATUAN")
-		
+
 		if name == "" {
 			skippedCount++
-			continue 
+			continue
 		}
 
 		// Check/Create Category
@@ -225,7 +233,7 @@ func seedProductsFromExcel(ctx context.Context, db *database.PostgresDB, product
 		basePrice, _ := strconv.ParseInt(sellPriceStr, 10, 64)
 		currentStock, _ := strconv.Atoi(currentStockStr)
 		minStock, _ := strconv.Atoi(minStockStr)
-		
+
 		isStockActive := true
 
 		// Construct Input
@@ -268,7 +276,7 @@ func seedProductsFromExcel(ctx context.Context, db *database.PostgresDB, product
 
 func cleanNumber(s string) string {
 	// Remove commas and dots
-	s = strings.ReplaceAll(s, ",", "") 
+	s = strings.ReplaceAll(s, ",", "")
 	s = strings.ReplaceAll(s, ".", "")
 	s = strings.TrimSpace(s)
 	if s == "" {

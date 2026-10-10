@@ -6,6 +6,7 @@
 
 STB_USER="root"
 STB_IP="100.115.147.87"
+STB_DIR="~/warung-bekti"
 BINARY_NAME="warung-api"
 
 echo "========================================="
@@ -25,9 +26,9 @@ echo "✅ Build Sukses: File $BINARY_NAME siap dikirim."
 
 # 2. Transfer via SCP
 echo ""
-echo "[2/4] 🚚 Mengirim file Binary ke STB ($STB_IP)..."
+echo "[2/4] 🚚 Mengirim file Binary ke STB ($STB_IP:$STB_DIR)..."
 echo "Silakan masukkan password STB jika diminta."
-scp $BINARY_NAME $STB_USER@$STB_IP:~/warung-bekti/$BINARY_NAME
+scp $BINARY_NAME $STB_USER@$STB_IP:$STB_DIR/$BINARY_NAME
 if [ $? -ne 0 ]; then
     echo "❌ Transfer Gagal!"
     exit 1
@@ -38,7 +39,7 @@ echo ""
 echo "[3/4] 🔄 Mem-build ulang image ringan dan menjalankan container di STB..."
 echo "Silakan masukkan password STB sekali lagi."
 ssh $STB_USER@$STB_IP << 'ENDSSH'
-    cd ~/warung-bekti || exit
+    cd ~/warung-bekti || exit 1
     
     echo "-> Mengambil update terbaru dari repositori..."
     git pull origin main
