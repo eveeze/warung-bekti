@@ -166,37 +166,26 @@ func runServer() {
 		}
 	}()
 
-	// Start Queue Server
-	// Initialize everything needed for workers
-	queueServer := queue.NewServer(cfg.Redis.Address(), cfg.Redis.Password, 10)
-	
-	// Re-initialize dependencies for workers (some might be reused from above if refactored, but here we rebuild or pass)
-	// Ideally we pass the same service instances. But router initializes them internally.
-	// We should probably move service initialization out of router.New and into main.go or a container struct.
-	// For now, let's just re-init what's needed for the worker handlers: NotificationService -> Repo -> DB.
-	
-	// Repos
-	notifRepo := repository.NewNotificationRepository(db)
-	
-	// Clients
-	qClient := queue.NewClient(cfg.Redis.Address(), cfg.Redis.Password)
-	osClient := onesignal.NewClient(cfg.OneSignal.AppID, cfg.OneSignal.APIKey)
-	
-	// Services
-	notifSvc := service.NewNotificationService(notifRepo, osClient, qClient)
-	// Note: We need TransactionService here if 'NewTransactionTask' needs it.
-	
-	// Register Handlers
-	queueServer.Handle(queue.TypeLowStockAlert, notifSvc.HandleLowStockTask)
-	queueServer.Handle(queue.TypeNewTransaction, notifSvc.HandleNewTransactionTask)
-	// queueServer.Handle(queue.TypeNotificationSend, ...) 
+	// Start Queue Server (only if Redis is available)
+	if redis != nil {
+		queueServer := queue.NewServer(cfg.Redis.Address(), cfg.Redis.Password, 10)
+		notifRepo := repository.NewNotificationRepository(db)
+		qClient := queue.NewClient(cfg.Redis.Address(), cfg.Redis.Password)
+		osClient := onesignal.NewClient(cfg.OneSignal.AppID, cfg.OneSignal.APIKey)
+		notifSvc := service.NewNotificationService(notifRepo, osClient, qClient)
 
-	go func() {
-		logger.Info("Starting Queue Server...")
-		if err := queueServer.Run(); err != nil {
-			logger.Fatal("Queue server error: %v", err)
-		}
-	}()
+		queueServer.Handle(queue.TypeLowStockAlert, notifSvc.HandleLowStockTask)
+		queueServer.Handle(queue.TypeNewTransaction, notifSvc.HandleNewTransactionTask)
+
+		go func() {
+			logger.Info("Starting Queue Server...")
+			if err := queueServer.Run(); err != nil {
+				logger.Error("Queue server error: %v", err)
+			}
+		}()
+	} else {
+		logger.Warn("Redis not available; background queue worker disabled")
+	}
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
