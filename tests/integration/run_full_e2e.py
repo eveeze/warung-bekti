@@ -136,7 +136,7 @@ class WarungFullE2ETester:
 
     def _test_register(self):
         ts = int(time.time() * 1000)
-        resp = requests.post(f"{self.base_url}/auth/register", json={
+        resp = requests.post(f"{self.base_url}/auth/register", headers=self.get_headers("admin"), json={
             "name": f"Tester {ts}",
             "email": f"tester_{ts}@warung.com",
             "password": "password123",

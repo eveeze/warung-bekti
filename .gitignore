@@ -47,6 +47,12 @@ tmp/
 debug
 __debug_bin
 
+# Tooling & Caches
+.opencode/
+__pycache__/
+*.pyc
+TASKS.md
+
 # Data Seeding
 ipos_data.xlsx
 *.xls

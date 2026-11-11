@@ -113,7 +113,13 @@ func TestAllHandlersThroughMux(t *testing.T) {
 		"password": "password123",
 		"role":     "cashier",
 	}
-	rec = doRequest(appRouter, "", "POST", "/auth/register", registerPayload)
+	// Verify unauthenticated register is rejected
+	unauthRec := doRequest(appRouter, "", "POST", "/auth/register", registerPayload)
+	if unauthRec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for unauthorized register, got: %d", unauthRec.Code)
+	}
+	// Admin register succeeds
+	rec = doRequest(appRouter, token, "POST", "/auth/register", registerPayload)
 	if rec.Code != http.StatusCreated {
 		t.Errorf("register failed: %d: %s", rec.Code, rec.Body.String())
 	}
@@ -389,7 +395,10 @@ func TestAllHandlersThroughMux(t *testing.T) {
 			_ = doRequest(appRouter, token, "GET", "/api/v1/kasbon/customers/"+custID+"?page=1&per_page=5&type=debt", nil)
 			_ = doRequest(appRouter, token, "GET", "/api/v1/kasbon/customers/"+custID+"?type=payment", nil)
 			_ = doRequest(appRouter, token, "GET", "/api/v1/kasbon/customers/"+custID+"/summary", nil)
-			_ = doRequest(appRouter, token, "GET", "/api/v1/kasbon/customers/"+custID+"/billing/pdf", nil)
+			pdfRec := doRequest(appRouter, token, "GET", "/api/v1/kasbon/customers/"+custID+"/billing/pdf", nil)
+			if pdfRec.Code != http.StatusOK {
+				t.Errorf("billing pdf failed: code=%d body=%s", pdfRec.Code, pdfRec.Body.String())
+			}
 			_ = doRequest(appRouter, token, "POST", "/api/v1/kasbon/customers/"+custID+"/payments", map[string]interface{}{
 				"amount": 5000,
 			})

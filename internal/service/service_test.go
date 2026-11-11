@@ -700,6 +700,12 @@ func TestAllOtherServicesLive(t *testing.T) {
 
 	dummyTxID := uuid.New()
 	if tp != nil {
+		testNote := "Drawer test"
+		_, _ = cfSvc.OpenDrawer(ctx, domain.OpenDrawerInput{
+			OpeningBalance: 50000,
+			OpenedBy:       "Service Test",
+			Notes:          &testNote,
+		})
 		dummyTx, errCreateTx := txSvc.CreateTransaction(ctx, domain.TransactionCreateInput{
 			Items:         []domain.TransactionItemInput{{ProductID: tp.ID, Quantity: 1}},
 			PaymentMethod: domain.PaymentMethodCash,

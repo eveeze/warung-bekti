@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -270,11 +271,21 @@ func (h *KasbonHandler) DownloadBillingPDF(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
+	cleanName := strings.ReplaceAll(customer.Name, "/", "_")
+	prefix := cleanName
+	if len(prefix) > 3 {
+		prefix = prefix[:3]
+	}
+	prefix = strings.ToUpper(strings.TrimSpace(prefix))
+	if prefix == "" {
+		prefix = "CUS"
+	}
+
 	data := pdf.BillingData{
 		StoreName:      "WARUNG KELONTONG", // Should get from Config
 		StoreAddress:   "Jalan Raya No. 1",
 		CustomerName:   customer.Name,
-		InvoiceNumber:  fmt.Sprintf("INV/%s/%s", now.Format("200601"), customer.Name[:3]), // Pseudo
+		InvoiceNumber:  fmt.Sprintf("INV/%s/%s", now.Format("200601"), prefix),
 		Date:           now,
 		PeriodStart:    &dateFrom,
 		PeriodEnd:      &now,
@@ -292,8 +303,18 @@ func (h *KasbonHandler) DownloadBillingPDF(w http.ResponseWriter, r *http.Reques
 	}
 
 	// 5. Stream Output
+	safeFilename := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			return r
+		}
+		return '_'
+	}, customer.Name)
+	if safeFilename == "" {
+		safeFilename = "customer"
+	}
+
 	w.Header().Set("Content-Type", "application/pdf")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=tagihan_%s.pdf", customer.Name))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"tagihan_%s.pdf\"", safeFilename))
 	
 	if err := doc.Output(w); err != nil {
 		// Can't really write error response here if headers already sent

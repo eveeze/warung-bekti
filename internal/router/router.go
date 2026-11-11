@@ -87,35 +87,6 @@ func New(
 	notificationHandler := handler.NewNotificationHandler(notificationSvc)
 	locationHandler := handler.NewLocationHandler(locationRepo)
 
-	// Public handler (no auth required) for landing page
-	publicHandler := handler.NewPublicHandler(productRepo, categoryRepo, cacheSvc)
-
-	// Health check routes (Public)
-	mux.HandleFunc("GET /health", healthHandler.Health)
-	mux.HandleFunc("GET /ready", healthHandler.Ready)
-	mux.HandleFunc("GET /live", healthHandler.Live)
-
-	// Auth routes (Public)
-	mux.HandleFunc("POST /auth/login", authHandler.Login)
-	mux.HandleFunc("POST /auth/register", authHandler.Register)
-	mux.HandleFunc("POST /auth/refresh", authHandler.RefreshToken)
-
-	// Public routes for landing page (no auth)
-	mux.HandleFunc("GET /public/products", publicHandler.ListProducts)
-	mux.HandleFunc("GET /public/products/{id}", publicHandler.GetProduct)
-	mux.HandleFunc("GET /public/categories", publicHandler.ListCategories)
-	
-	// Real-time Events (SSE) - Protected
-	// Frontend: const eventSource = new EventSource('/api/v1/events?token=...') or use EventSourcePolyfill for headers
-	// For simplicity, we can make it public or token in query param.
-	// Let's use Token in Header (EventSourcePolyfill) or Query param. 
-	// Middleware Auth usually checks Header.
-	// Let's assume protected.
-	mux.HandleFunc("GET /api/v1/events", eventHandler.Events)
-
-	// API v1 routes
-	apiPrefix := "/api/v1"
-
 	// Middleware for protected routes
 	authMiddleware := middleware.Auth(&cfg.JWT)
 
@@ -135,6 +106,35 @@ func New(
 	inventoryAccess := func(h http.HandlerFunc) http.HandlerFunc {
 		return authMiddleware(middleware.RequireRole("admin", "inventory")(http.HandlerFunc(h))).ServeHTTP
 	}
+
+	// Public handler (no auth required) for landing page
+	publicHandler := handler.NewPublicHandler(productRepo, categoryRepo, cacheSvc)
+
+	// Health check routes (Public)
+	mux.HandleFunc("GET /health", healthHandler.Health)
+	mux.HandleFunc("GET /ready", healthHandler.Ready)
+	mux.HandleFunc("GET /live", healthHandler.Live)
+
+	// Auth routes
+	mux.HandleFunc("POST /auth/login", authHandler.Login)
+	mux.HandleFunc("POST /auth/register", adminOnly(authHandler.Register))
+	mux.HandleFunc("POST /auth/refresh", authHandler.RefreshToken)
+
+	// Public routes for landing page (no auth)
+	mux.HandleFunc("GET /public/products", publicHandler.ListProducts)
+	mux.HandleFunc("GET /public/products/{id}", publicHandler.GetProduct)
+	mux.HandleFunc("GET /public/categories", publicHandler.ListCategories)
+	
+	// Real-time Events (SSE) - Protected
+	// Frontend: const eventSource = new EventSource('/api/v1/events?token=...') or use EventSourcePolyfill for headers
+	// For simplicity, we can make it public or token in query param.
+	// Let's use Token in Header (EventSourcePolyfill) or Query param. 
+	// Middleware Auth usually checks Header.
+	// Let's assume protected.
+	mux.HandleFunc("GET /api/v1/events", eventHandler.Events)
+
+	// API v1 routes
+	apiPrefix := "/api/v1"
 
 	// ========================================================================
 	// USERS MANAGEMENT (Admin Only)

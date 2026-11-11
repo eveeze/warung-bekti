@@ -41,14 +41,15 @@ func GenerateBillingPDF(data BillingData) (*fpdf.Fpdf, error) {
 	primaryColor := []int{0, 0, 0} // Black for professional look, or maybe a nice blue
 
 	// -- Header --
+	tr := pdf.UnicodeTranslatorFromDescriptor("")
 	pdf.SetFont("Arial", "B", 20)
 	pdf.SetTextColor(primaryColor[0], primaryColor[1], primaryColor[2])
-	pdf.Cell(0, 10, data.StoreName)
+	pdf.Cell(0, 10, tr(data.StoreName))
 	pdf.Ln(8)
 	
 	pdf.SetFont("Arial", "", 10)
 	pdf.SetTextColor(darkGray[0], darkGray[1], darkGray[2])
-	pdf.Cell(0, 5, data.StoreAddress)
+	pdf.Cell(0, 5, tr(data.StoreAddress))
 	pdf.Ln(15)
 
 	// -- Title & Info --
@@ -64,7 +65,7 @@ func GenerateBillingPDF(data BillingData) (*fpdf.Fpdf, error) {
 	pdf.SetFont("Arial", "B", 10)
 	pdf.Cell(30, 5, "Kepada:")
 	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(0, 5, data.CustomerName)
+	pdf.Cell(0, 5, tr(data.CustomerName))
 	pdf.Ln(5)
 	
 	// Right Column: Invoice Info (Manually positioned or just sequential)
@@ -72,7 +73,7 @@ func GenerateBillingPDF(data BillingData) (*fpdf.Fpdf, error) {
 	pdf.SetFont("Arial", "B", 10)
 	pdf.Cell(30, 5, "Nomor:")
 	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(0, 5, data.InvoiceNumber)
+	pdf.Cell(0, 5, tr(data.InvoiceNumber))
 	pdf.Ln(5)
 	
 	pdf.SetFont("Arial", "B", 10)
@@ -116,7 +117,7 @@ func GenerateBillingPDF(data BillingData) (*fpdf.Fpdf, error) {
 		pdf.CellFormat(colWidths[0], 8, tx.Date.Format("02/01/06"), "LR", 0, "L", false, 0, "")
 		
 		desc := truncateString(tx.Description, 35) // Simple truncate
-		pdf.CellFormat(colWidths[1], 8, desc, "R", 0, "L", false, 0, "")
+		pdf.CellFormat(colWidths[1], 8, tr(desc), "R", 0, "L", false, 0, "")
 		
 		debtStr := "-"
 		payStr := "-"
@@ -147,16 +148,21 @@ func GenerateBillingPDF(data BillingData) (*fpdf.Fpdf, error) {
 	pdf.CellFormat(35, 10, formatMoney(data.EndingBalance), "", 1, "R", false, 0, "")
 
 	// -- Footer / Payment Instructions --
-	pdf.SetY(240) // Bottom of page usually
+	if pdf.GetY() > 230 {
+		pdf.AddPage()
+		pdf.SetY(20)
+	} else {
+		pdf.Ln(10)
+	}
 	
 	pdf.SetFont("Arial", "B", 10)
 	pdf.Cell(0, 5, "Instruksi Pembayaran:")
 	pdf.Ln(6)
 	
 	pdf.SetFont("Arial", "", 9)
-	pdf.MultiCell(0, 5, data.PaymentInst, "", "L", false)
+	pdf.MultiCell(0, 5, tr(data.PaymentInst), "", "L", false)
 	
-	pdf.Ln(10)
+	pdf.Ln(6)
 	pdf.SetFont("Arial", "I", 8)
 	pdf.Cell(0, 5, fmt.Sprintf("Dicetak pada: %s", time.Now().Format("02 Jan 2006 15:04:05")))
 

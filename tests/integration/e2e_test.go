@@ -109,7 +109,7 @@ func TestFullGoE2ESuite(t *testing.T) {
 
 	// 2. Auth & RBAC
 	_ = h.request("", "POST", "/auth/login", map[string]string{"email": "admin@warung.com", "password": "wrong"})
-	_ = h.request("", "POST", "/auth/register", map[string]string{
+	_ = h.request(h.adminToken, "POST", "/auth/register", map[string]string{
 		"name": "Dev User", "email": "dev_" + uuid.New().String()[:8] + "@warung.com", "password": "password123", "role": "cashier",
 	})
 

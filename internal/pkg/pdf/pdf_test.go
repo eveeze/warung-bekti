@@ -2,6 +2,7 @@ package pdf_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,21 +11,28 @@ import (
 
 func TestGenerateBillingPDF(t *testing.T) {
 	now := time.Now()
+	var txs []pdf.BillingTransaction
+	for i := 0; i < 60; i++ {
+		txs = append(txs, pdf.BillingTransaction{
+			Date:        now,
+			Description: fmt.Sprintf("Barang Belanjaan Nomor %d", i+1),
+			Type:        "debt",
+			Amount:      10000,
+			Balance:     int64(10000 * (i + 1)),
+		})
+	}
 	data := pdf.BillingData{
-		CustomerName:   "Budi Santoso",
+		CustomerName:   "Jo",
 		InvoiceNumber:  "INV-TEST-001",
 		Date:           now,
 		PeriodStart:    &now,
 		PeriodEnd:      &now,
-		OpeningBalance: 50000,
-		Transactions: []pdf.BillingTransaction{
-			{Date: now, Description: "Beras 5kg", Type: "debt", Amount: 75000, Balance: 125000},
-			{Date: now, Description: "Cicilan 1", Type: "payment", Amount: 25000, Balance: 100000},
-		},
-		EndingBalance: 100000,
-		StoreName:     "Warung Kelontong Berkah",
-		StoreAddress:  "Jl. Merdeka No. 45",
-		PaymentInst:   "BCA 123456789 a.n. Warung",
+		OpeningBalance: 0,
+		Transactions:   txs,
+		EndingBalance:  600000,
+		StoreName:      "Warung Kelontong Berkah",
+		StoreAddress:   "Jl. Merdeka No. 45",
+		PaymentInst:    "BCA 123456789 a.n. Warung",
 	}
 
 	doc, err := pdf.GenerateBillingPDF(data)
